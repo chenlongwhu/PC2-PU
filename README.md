@@ -1,6 +1,6 @@
 # PC2-PU
 
-This repository contains a Tensorflow implementation of the paper:
+This repository contains a Pytorch implementation of the paper:
 
 [PC2-PU: Patch Correlation and Position Correction for Effective Point Cloud Upsampling](https://arxiv.org/abs/2109.09337).
 
