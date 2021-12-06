@@ -68,7 +68,7 @@ If PC2-PU is useful for your research, please consider citing:
       eprint={2109.09337},
       archivePrefix={arXiv},
       primaryClass={cs.CV}
-}
+    }
 
 ## Related Repositories
 The original code framework is rendered from ["PUGAN_pytorch"](https://github.com/UncleMEDM/PUGAN-pytorch). It is developed by [Haolin Liu](https://github.com/UncleMEDM) at The Chinese University of HongKong.
