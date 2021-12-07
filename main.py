@@ -8,7 +8,7 @@ from utils.loss import Loss
 from utils.helper import Logger, adjust_learning_rate, adjust_gamma, save_checkpoint
 from utils.configs import args
 from network.model import Model
-from utils.data_loader import Dataset
+from utils.data_loader import Dataset, PUGAN_Dataset
 from time import time
 from torch.utils.data import DataLoader
 import pointnet2_ops.pointnet2_utils as pointnet2
@@ -138,14 +138,24 @@ else:
 model = torch.nn.DataParallel(model)
 # 多GPU训练
 if args.phase == "train":
-    train_dataset = Dataset(args)
-    train_data_loader = DataLoader(
-        dataset=train_dataset,
-        batch_size=args.batch_size // 2,
-        shuffle=True,
-        num_workers=args.num_workers,
-        pin_memory=True,
-    )
+    if args.use_single_patch:
+        train_dataset = PUGAN_Dataset(args)
+        train_data_loader = DataLoader(
+            dataset=train_dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=args.num_workers,
+            pin_memory=True,
+        )
+    else:
+        train_dataset = Dataset(args)
+        train_data_loader = DataLoader(
+            dataset=train_dataset,
+            batch_size=args.batch_size // 2,
+            shuffle=True,
+            num_workers=args.num_workers,
+            pin_memory=True,
+        )
     n_set = len(train_data_loader)
     for epoch in range(start_epoch, args.training_epoch):
         model.train()
@@ -184,8 +194,12 @@ if args.phase == "train":
                 L2_loss = Loss_fn.get_l2_regular_loss(model, args.regular_w)
             else:
                 L2_loss = 0
-            sparse_loss = args.fidelity_w * Loss_fn.get_cd_loss(sparse, gt, radius)
-            refine_loss = args.fidelity_w * Loss_fn.get_cd_loss(refine, gt, radius)
+            if args.use_emd:
+                sparse_loss = args.fidelity_w * Loss_fn.get_emd_loss(sparse, gt, radius)
+                refine_loss = args.fidelity_w * Loss_fn.get_emdloss(refine, gt, radius)
+            else:
+                sparse_loss = args.fidelity_w * Loss_fn.get_cd_loss(sparse, gt, radius)
+                refine_loss = args.fidelity_w * Loss_fn.get_cd_loss(refine, gt, radius)
 
             loss = (
                 gamma * refine_loss

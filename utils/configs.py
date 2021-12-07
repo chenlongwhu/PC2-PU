@@ -16,7 +16,6 @@ parser.add_argument("--gt_dir", default="data/test/gt_8192")
 parser.add_argument("--out_dir", default="4倍上采样测试")
 parser.add_argument("--checkpoint_path", default="")
 parser.add_argument("--restore", action="store_true")
-
 parser.add_argument("--n_upsample", type=int, default=1)
 parser.add_argument("--training_epoch", type=int, default=400)
 parser.add_argument("--batch_size", type=int, default=28)
@@ -45,14 +44,17 @@ parser.add_argument("--lr_clip", type=float, default=1e-6)
 parser.add_argument("--seed", type=int, default=11)
 
 parser.add_argument("--use_repulse", type=str2bool, default=False)
-parser.add_argument("--repulsion_w", default=1.0, type=float, help="repulsion_weight")
+parser.add_argument("--use_emd", type=str2bool, default=False)
 parser.add_argument("--use_uniform", type=str2bool, default=False)
+parser.add_argument("--use_l2", type=bool, default=False)
+parser.add_argument("--use_single_patch", type=bool, default=False)
+
+parser.add_argument("--repulsion_w", default=1.0, type=float, help="repulsion_weight")
 parser.add_argument("--uniform_w", default=10.0, type=float, help="uniform_weight")
 parser.add_argument("--patch_visualize", type=str2bool, default=True)
 parser.add_argument("--fidelity_feq", type=int, default=10)
 parser.add_argument("--fidelity_w", type=float, default=1000.0)  # 针对CD损失
 parser.add_argument("--regular_w", type=int, default=0.0)
-parser.add_argument("--use_l2", type=bool, default=False)
 parser.add_argument("--num_workers", type=int, default=8)
 
 args = parser.parse_args()

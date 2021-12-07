@@ -178,12 +178,13 @@ class Model(nn.Module):
     def __init__(self, args):
         super(Model, self).__init__()
         self.args = args
+        self.is_cross_atn = not args.use_single_patch
         self.feature_extractor = feature_extraction()
         self.patch_correlation = transformer(
             K=self.args.K1,
             in_channel=480,
             transform_dim=args.transform_dim,
-            is_cross_atn=True,
+            is_cross_atn=self.is_cross_atn,
         )
         self.up_projection_unit = up_projection_unit()
 
