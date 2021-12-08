@@ -41,7 +41,7 @@ parser.add_argument("--start_decay_epoch", type=int, default=40)
 parser.add_argument("--lr_decay_epoch", type=int, default=40)
 parser.add_argument("--lr_decay_radio", type=float, default=0.7)
 parser.add_argument("--lr_clip", type=float, default=1e-6)
-parser.add_argument("--seed", type=int, default=11)
+parser.add_argument("--seed", type=int, default=2021)
 
 parser.add_argument("--use_repulse", type=str2bool, default=False)
 parser.add_argument("--use_emd", type=str2bool, default=False)
@@ -54,7 +54,7 @@ parser.add_argument("--uniform_w", default=10.0, type=float, help="uniform_weigh
 parser.add_argument("--patch_visualize", type=str2bool, default=True)
 parser.add_argument("--fidelity_feq", type=int, default=10)
 parser.add_argument("--fidelity_w", type=float, default=1000.0)  # 针对CD损失
-parser.add_argument("--regular_w", type=int, default=0.0)
+parser.add_argument("--regular_w", type=float, default=1e-5)
 parser.add_argument("--num_workers", type=int, default=8)
 
 args = parser.parse_args()

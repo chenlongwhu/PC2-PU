@@ -1,9 +1,14 @@
 import csv
 import os
 import shutil
+import sys
 
 import torch
+import numpy as np
 from torch.utils.tensorboard import SummaryWriter
+
+sys.path.append("../")
+# from utils.visu_utils import point_cloud_three_views
 
 
 class Logger:
@@ -36,6 +41,10 @@ class Logger:
         refine_loss,
         L2_loss,
         loss,
+        # input,
+        # sparse,
+        # refine,
+        # gt,
         step,
     ):
         self.writer.add_scalar("learning_rate", lr, step)
@@ -46,6 +55,16 @@ class Logger:
         self.writer.add_scalar("refine_loss", refine_loss, step)
         self.writer.add_scalar("L2_loss", L2_loss, step)
         self.writer.add_scalar("total_loss", loss, step)
+        # input = input.permute(1, 0).contiguous().cpu().numpy()
+        # sparse = sparse.detach().cpu().numpy()
+        # refine = refine.detach().cpu().numpy()
+        # gt = gt.detach().cpu().numpy()
+        # input = point_cloud_three_views(input)
+        # sparse = point_cloud_three_views(sparse)
+        # refine = point_cloud_three_views(refine)
+        # gt = point_cloud_three_views(gt)
+        # image = np.concatenate([input, sparse, refine, gt], axis=1)
+        # self.writer.add_image("image", image, step, dataformats="HW")
 
     def log_string(self, msg):
         # global LOG_FOUT

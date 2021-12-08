@@ -1,14 +1,16 @@
+from platform import dist
+import sys
+
 import torch
 import torch.nn as nn
-import os, sys
-import numpy as np
 
 sys.path.append("../")
-from auction_match import auction_match
-import pointnet2_ops.pointnet2_utils as pn2_utils
 import math
-from knn_cuda import KNN
+
+import pointnet2_ops.pointnet2_utils as pn2_utils
+from auction_match import auction_match
 from chamfer3D.dist_chamfer_3D import chamfer_3DDist
+from knn_cuda import KNN
 
 
 class Loss(nn.Module):
@@ -31,7 +33,7 @@ class Loss(nn.Module):
         dist2 = (pred - matched_out) ** 2
         dist2 = dist2.view(dist2.shape[0], -1)  # <-- ???
         dist2 = torch.mean(dist2, dim=1, keepdims=True)  # B,
-        dist2 /= radius
+        dist2 = dist2 / radius
         return torch.mean(dist2)
 
     # 添加cd loss
@@ -108,9 +110,9 @@ class Loss(nn.Module):
 
     def get_l2_regular_loss(self, model, alpha):
         l2_loss = torch.tensor(0.0, requires_grad=True)
-        for name, param in model.named_parameters():
-            if "bias" not in name:  # 一般不对偏置项使用正则
-                l2_loss = l2_loss + (0.5 * alpha * torch.sum(torch.pow(param, 2)))
+        for _, param in model.named_parameters():
+            # if "bias" not in name:  # 一般不对偏置项使用正则
+            l2_loss = l2_loss + (0.5 * alpha * torch.sum(torch.pow(param, 2)))
         return l2_loss
 
     def get_discriminator_loss(self, pred_fake, pred_real):

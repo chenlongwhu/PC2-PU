@@ -1,22 +1,23 @@
 import os
-import numpy as np
 import random
+from time import time
+
+import numpy as np
+import pointnet2_ops.pointnet2_utils as pointnet2
 import torch
 import torch.backends.cudnn as cudnn
-import utils.pc_util as pc_util
-from utils.loss import Loss
-from utils.helper import Logger, adjust_learning_rate, adjust_gamma, save_checkpoint
-from utils.configs import args
-from network.model import Model
-from utils.data_loader import Dataset, PUGAN_Dataset
-from time import time
 from torch.utils.data import DataLoader
-import pointnet2_ops.pointnet2_utils as pointnet2
+
+import utils.pc_util as pc_util
+from common.configs import args
+from common.data_loader import Dataset, PUGAN_Dataset
+from common.helper import Logger, adjust_gamma, adjust_learning_rate, save_checkpoint
+from common.loss import Loss
+from network.model import Model
 
 
 def xavier_init(m):
     classname = m.__class__.__name__
-    # print(classname)
     if classname.find("Conv") != -1:
         torch.nn.init.xavier_normal_(m.weight)
     elif classname.find("Linear") != -1:
@@ -59,7 +60,7 @@ def test(
             pred = pred.permute(0, 2, 1).contiguous()  # n 256 3
             input_list = input_list[::2, :, :]  # n 256 3
             pred = pred * furthest_distances.to(device) + centorids.to(device)
-            if args.patch_visualize:
+            if args.patch_visualize and args.phase == "test":
                 pc_util.patch_visualize(
                     input_list.numpy(), pred.cpu().numpy(), out_folder, name_list[i],
                 )
@@ -196,7 +197,7 @@ if args.phase == "train":
                 L2_loss = 0
             if args.use_emd:
                 sparse_loss = args.fidelity_w * Loss_fn.get_emd_loss(sparse, gt, radius)
-                refine_loss = args.fidelity_w * Loss_fn.get_emdloss(refine, gt, radius)
+                refine_loss = args.fidelity_w * Loss_fn.get_emd_loss(refine, gt, radius)
             else:
                 sparse_loss = args.fidelity_w * Loss_fn.get_cd_loss(sparse, gt, radius)
                 refine_loss = args.fidelity_w * Loss_fn.get_cd_loss(refine, gt, radius)

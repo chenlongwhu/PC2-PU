@@ -1,16 +1,15 @@
 import argparse
 import csv
 import os
+import subprocess
 from collections import OrderedDict
 from glob import glob
-from pickle import PERSID
 from time import time
-import subprocess
 
 import numpy as np
 import torch
 
-from utils.loss import Loss
+from common.loss import Loss
 from utils.pc_util import load, normalize_point_cloud
 
 

@@ -58,7 +58,10 @@ def get_val_data(args):
         )
         patches = extract_knn_patch(seed_coor, input, args.num_point)
         for j in range(seed_num):
-            idx = find_best_neighbor(patches, seed_sort[j, 1:4], j)
+            if args.use_single_patch:
+                idx = j
+            else:
+                idx = find_best_neighbor(patches, seed_sort[j, 1:4], j)
             point = np.stack([patches[j, :], patches[idx, :]])
             input_list.append(point)  # 2 * 256 *3
         gt = load(os.path.join(args.gt_dir, name_list[i]))

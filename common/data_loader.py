@@ -1,6 +1,7 @@
+import sys
+
 import h5py
 import torch.utils.data as data
-import sys
 
 sys.path.append("../")
 import numpy as np
@@ -138,8 +139,8 @@ class PUGAN_Dataset(data.Dataset):
 
 
 if __name__ == "__main__":
-    from utils.configs import args
     from torch.utils.data import DataLoader
+    from configs import args
 
     args.data_dir = "../data/train/PUGAN_poisson_256_poisson_1024.h5"
     # args.data_dir = "../data/train/PC2-PU.h5"
