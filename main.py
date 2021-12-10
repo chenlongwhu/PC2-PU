@@ -195,6 +195,10 @@ if args.phase == "train":
                 L2_loss = Loss_fn.get_l2_regular_loss(model, args.regular_w)
             else:
                 L2_loss = 0
+            if args.use_hd:
+                hd_loss = args.hd_w * Loss_fn.get_hd_loss(refine, gt, radius)
+            else:
+                hd_loss = 0
             if args.use_emd:
                 sparse_loss = args.fidelity_w * Loss_fn.get_emd_loss(sparse, gt, radius)
                 refine_loss = args.fidelity_w * Loss_fn.get_emd_loss(refine, gt, radius)
@@ -204,6 +208,7 @@ if args.phase == "train":
 
             loss = (
                 gamma * refine_loss
+                + gamma * hd_loss
                 + sparse_loss
                 + repulsion_loss
                 + uniform_loss
@@ -221,6 +226,7 @@ if args.phase == "train":
                 sparse_loss,
                 refine_loss,
                 L2_loss,
+                hd_loss,
                 loss,
                 step,
             )  # 写入tensorboard
@@ -231,6 +237,7 @@ if args.phase == "train":
                 sparse_loss,
                 refine_loss,
                 L2_loss,
+                hd_loss,
                 loss,
                 epoch,
                 step,

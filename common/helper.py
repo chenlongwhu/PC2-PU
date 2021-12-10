@@ -40,6 +40,7 @@ class Logger:
         sparse_loss,
         refine_loss,
         L2_loss,
+        hd_loss,
         loss,
         # input,
         # sparse,
@@ -54,6 +55,7 @@ class Logger:
         self.writer.add_scalar("sparse_loss", sparse_loss, step)
         self.writer.add_scalar("refine_loss", refine_loss, step)
         self.writer.add_scalar("L2_loss", L2_loss, step)
+        self.writer.add_scalar("hd_loss", hd_loss, step)
         self.writer.add_scalar("total_loss", loss, step)
         # input = input.permute(1, 0).contiguous().cpu().numpy()
         # sparse = sparse.detach().cpu().numpy()
@@ -74,12 +76,22 @@ class Logger:
         self.LOG_FOUT.flush()
 
     def print_info(
-        self, gpu_time, total_time, sparse_loss, refine_loss, L2_loss, loss, epoch, step
+        self,
+        gpu_time,
+        total_time,
+        sparse_loss,
+        refine_loss,
+        L2_loss,
+        hd_loss,
+        loss,
+        epoch,
+        step,
     ):
         self.log_string("-----------EPOCH %d Step %d:-------------" % (epoch, step))
         self.log_string("  sparse_loss   : {:.6f}".format(sparse_loss))
         self.log_string("  refine_loss   : {:.6f}".format(refine_loss))
         self.log_string("    L2_loss     : {:.6f}".format(L2_loss))
+        self.log_string("    hd_loss     : {:.6f}".format(hd_loss))
         self.log_string("     loss       : {:.6f}".format(loss))
         self.log_string("   gpu_time     : {:.6f}".format(gpu_time))
         self.log_string("  total_time    : {:.6f}".format(total_time))
