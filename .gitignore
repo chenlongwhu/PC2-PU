@@ -4,6 +4,10 @@ __pycache__
 data
 log
 build
+dist
+emd_ext.egg-info
 tmp
 *.out
+*.so
 evaluate
+

@@ -1,4 +1,3 @@
-from platform import dist
 import sys
 
 import torch
@@ -8,8 +7,9 @@ sys.path.append("../")
 import math
 
 import pointnet2_ops.pointnet2_utils as pn2_utils
-from auction_match import auction_match
 from chamfer3D.dist_chamfer_3D import chamfer_3DDist
+
+from emd.emd import earth_mover_distance
 from knn_cuda import KNN
 
 
@@ -25,16 +25,9 @@ class Loss(nn.Module):
         """
         pred and gt is B N 3
         """
-        idx, _ = auction_match(pred.contiguous(), gt.contiguous())
-        # gather operation has to be B 3 N
-        # print(gt.transpose(1,2).shape)
-        matched_out = pn2_utils.gather_operation(gt.transpose(1, 2).contiguous(), idx)
-        matched_out = matched_out.transpose(1, 2).contiguous()
-        dist2 = (pred - matched_out) ** 2
-        dist2 = dist2.view(dist2.shape[0], -1)  # <-- ???
-        dist2 = torch.mean(dist2, dim=1, keepdims=True)  # B,
-        dist2 = dist2 / radius
-        return torch.mean(dist2)
+        dist = earth_mover_distance(pred, gt, transpose=False)
+        dist = dist / radius
+        return torch.mean(dist)
 
     # 添加cd loss
     def get_cd_loss(self, pred, gt, radius=1.0):

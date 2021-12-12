@@ -27,7 +27,14 @@ This repository contains a Pytorch implementation of the paper:
     pip install "git+git://github.com/erikwijmans/Pointnet2_PyTorch.git#egg=pointnet2_ops&subdirectory=pointnet2_ops_lib"
     ```
 
-4. Train the model:
+4. Install emd
+    ```
+    cd emd
+    python setup.py install
+    cp build/lib.linux-x86_64-3.7/emd_cuda.cpython-37m-x86_64-linux-gnu.so .
+    ```
+
+5. Train the model:
     First, you need to download the training patches in HDF5 format from [GoogleDrive](https://drive.google.com/file/d/1nRTvtjV9W8oEAJ_SAlmw2T9LB0Osobe7/view?usp=sharing) and put it in folder `data/train`.
     Then run:
    ```shell
@@ -35,7 +42,7 @@ This repository contains a Pytorch implementation of the paper:
    python main.py --log_dir log/PC2-PU
    ```
 
-5. Evaluate the model:
+6. Evaluate the model:
     First, you need to download the pretrained model from [GoogleDrive](https://drive.google.com/file/d/1SL1kcqex6rRrpjRp4fH-6XrVHyy1bYas/view?usp=sharing), extract it and put it in folder 'log'.
     Then run:
    ```shell
@@ -44,7 +51,7 @@ This repository contains a Pytorch implementation of the paper:
    ```
    You will see the input and output results in the folder `log/PC2-PU`.
 
-6. The training and testing mesh files can be downloaded from [GoogleDrive](https://drive.google.com/open?id=1BNqjidBVWP0_MUdMTeGy1wZiR6fqyGmC).
+7. The training and testing mesh files can be downloaded from [GoogleDrive](https://drive.google.com/open?id=1BNqjidBVWP0_MUdMTeGy1wZiR6fqyGmC).
 
 ### Evaluation code
 We provide the evaluation code. In order to use it, you need to install the CGAL library. Please refer [this link](https://www.cgal.org/download/linux.html) and  [PU-Net](https://github.com/yulequan/PU-Net) to install this library.
@@ -72,6 +79,8 @@ If PC2-PU is useful for your research, please consider citing:
 
 ## Related Repositories
 The original code framework is rendered from ["PUGAN_pytorch"](https://github.com/UncleMEDM/PUGAN-pytorch). It is developed by [Haolin Liu](https://github.com/UncleMEDM) at The Chinese University of HongKong.
+
+The original code of emd is rendered from ["PyTorchEMD"](https://github.com/daerduoCarey/PyTorchEMD). It is developed by [Kaichun Mo](http://www.cs.stanford.edu/~kaichun) at Stanford University.
 
 The original code of helper is rendered from ["Self-supervised Sparse-to-Dense:  Self-supervised Depth Completion from LiDAR and Monocular Camera"](https://github.com/fangchangma/self-supervised-depth-completion). It is developed by [Fangchang Ma](http://www.mit.edu/~fcma/), Guilherme Venturelli Cavalheiro, and [Sertac Karaman](http://karaman.mit.edu/) at MIT.
 
