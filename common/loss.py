@@ -25,9 +25,10 @@ class Loss(nn.Module):
         """
         pred and gt is B N 3
         """
+        N = gt.shape[1]
         dist = earth_mover_distance(pred, gt, transpose=False)
-        dist = dist / radius
-        return torch.mean(dist)
+        dist = dist / N
+        return torch.mean(dist / radius)
 
     # 添加cd loss
     def get_cd_loss(self, pred, gt, radius=1.0):
