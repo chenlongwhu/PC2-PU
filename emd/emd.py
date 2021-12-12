@@ -40,3 +40,23 @@ def earth_mover_distance(xyz1, xyz2, transpose=True):
         xyz2 = xyz2.transpose(1, 2)
     cost = EarthMoverDistanceFunction.apply(xyz1, xyz2)
     return cost
+
+
+if __name__ == "__main__":
+    import numpy as np
+    from time import time
+
+    p1 = torch.from_numpy(
+        np.array([[[1.7, -0.1, 0.1], [0.1, 1.2, 0.3]]], dtype=np.float32)
+    ).cuda()
+    p1 = p1.repeat(3, 1, 1)
+    p2 = torch.from_numpy(
+        np.array([[[0.3, 1.8, 0.2], [1.2, -0.2, 0.3]]], dtype=np.float32)
+    ).cuda()
+    p2 = p2.repeat(3, 1, 1)
+    p1.requires_grad = True
+    p2.requires_grad = True
+
+    start = time()
+    d = earth_mover_distance(p1, p2, transpose=False)
+    d = torch.mean(d)
