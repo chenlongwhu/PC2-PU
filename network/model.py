@@ -234,18 +234,18 @@ class transformer(nn.Module):
         self.conv1 = nn.Conv1d(self.in_channel, self.transform_dim, 1)
         self.conv2 = nn.Conv1d(self.transform_dim, self.in_channel, 1)
         self.fc_delta = nn.Sequential(
-            nn.Conv2d(10, self.transform_dim, [1, 1]),
+            nn.Conv2d(10, 64, [1, 1]),
             nn.ReLU(),
-            nn.Conv2d(self.transform_dim, self.transform_dim, [1, 1]),
+            nn.Conv2d(64, self.transform_dim, [1, 1]),
         )
         self.fc_gamma = nn.Sequential(
-            nn.Conv2d(self.transform_dim, self.transform_dim, [1, 1]),
+            nn.Conv2d(self.transform_dim, 4 * self.transform_dim, [1, 1]),
             nn.ReLU(),
-            nn.Conv2d(self.transform_dim, self.transform_dim, [1, 1]),
+            nn.Conv2d(4 * self.transform_dim, self.transform_dim, [1, 1]),
         )
-        self.w_qs = nn.Conv1d(self.transform_dim, self.transform_dim, 1, bias=False)
-        self.w_ks = nn.Conv1d(self.transform_dim, self.transform_dim, 1, bias=False)
-        self.w_vs = nn.Conv1d(self.transform_dim, self.transform_dim, 1, bias=False)
+        self.w_qs = nn.Conv1d(self.transform_dim, self.transform_dim, 1)
+        self.w_ks = nn.Conv1d(self.transform_dim, self.transform_dim, 1)
+        self.w_vs = nn.Conv1d(self.transform_dim, self.transform_dim, 1)
 
     def forward(self, feature, xyz):  # b 480 n, b 3 n
         # b n c

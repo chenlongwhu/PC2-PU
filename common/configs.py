@@ -42,6 +42,7 @@ parser.add_argument("--lr_decay_epoch", type=int, default=40)
 parser.add_argument("--lr_decay_radio", type=float, default=0.7)
 parser.add_argument("--lr_clip", type=float, default=1e-6)
 parser.add_argument("--seed", type=int, default=2021)
+parser.add_argument("--start_eval_epoch", type=int, default=40)
 
 parser.add_argument("--use_repulse", type=str2bool, default=False)
 parser.add_argument("--use_emd", type=str2bool, default=False)

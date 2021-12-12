@@ -28,6 +28,7 @@ def xavier_init(m):
 
 
 def test(
+    model,
     npoints,
     input_val_list,
     gt_val_list,
@@ -35,7 +36,6 @@ def test(
     distance_val_list,
     name_list,
 ):
-    model.eval().to(device)
     start = time()
     val_loss = Loss()
     cd_loss, hd_loss = 0.0, 0.0
@@ -43,8 +43,9 @@ def test(
     out_folder = os.path.join(args.log_dir, args.out_dir)
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
-    for i in range(num_sample):
-        with torch.no_grad():
+    with torch.no_grad():
+        for i in range(num_sample):
+            torch.cuda.empty_cache()
             d = distance_val_list[i].float().to(device)
             c = centroid_val_list[i].float().to(device)
             # input [n * 2, 256, 3], gt [8192, 3] torch.tensor, centroid 1 distance [3]
@@ -77,18 +78,20 @@ def test(
                 pred, _, _ = pc_util.normalize_point_cloud(pred.cpu().numpy())
                 pred = torch.from_numpy(pred).unsqueeze(0).contiguous().to(device)
                 # 1 n 3
-                cd_loss += val_loss.get_cd_loss(pred, gt)
-                hd_loss += val_loss.get_hd_loss(pred, gt)
+                cd_loss += val_loss.get_cd_loss(pred, gt).item()
+                hd_loss += val_loss.get_hd_loss(pred, gt).item()
             else:
-                cd_loss = torch.tensor(1.0)
-                hd_loss = torch.tensor(1.0)
+                cd_loss = 1.0
+                hd_loss = 1.0
 
     print(
         "cd loss : {:.4f}, hd loss : {:.4f}".format(
-            (cd_loss / num_sample * 1000).item(), (hd_loss / num_sample * 1000).item()
+            (cd_loss / num_sample * 1000), (hd_loss / num_sample * 1000)
         )
     )
     print("测试共花费:{:.6f}s".format(time() - start))
+    del d, c, input, gt, pred, index  # 清楚内存
+    torch.cuda.empty_cache()
 
     return cd_loss / num_sample, hd_loss / num_sample
 
@@ -184,21 +187,21 @@ if args.phase == "train":
             if args.use_repulse:
                 repulsion_loss = args.repulsion_w * Loss_fn.get_repulsion_loss(refine)
             else:
-                repulsion_loss = 0
+                repulsion_loss = torch.tensor(0.0)
             if args.use_uniform:
                 uniform_loss = args.uniform_w + Loss_fn.get_uniform_loss(
                     refine, radius=radius
                 )
             else:
-                uniform_loss = 0
+                uniform_loss = torch.tensor(0.0)
             if args.use_l2:
                 L2_loss = Loss_fn.get_l2_regular_loss(model, args.regular_w)
             else:
-                L2_loss = 0
+                L2_loss = torch.tensor(0.0)
             if args.use_hd:
                 hd_loss = args.hd_w * Loss_fn.get_hd_loss(refine, gt, radius)
             else:
-                hd_loss = 0
+                hd_loss = torch.tensor(0.0)
             if args.use_emd:
                 sparse_loss = args.fidelity_w * Loss_fn.get_emd_loss(sparse, gt, radius)
                 refine_loss = args.fidelity_w * Loss_fn.get_emd_loss(refine, gt, radius)
@@ -221,30 +224,32 @@ if args.phase == "train":
             logger.save_info(
                 lr,
                 gamma,
-                repulsion_loss,
-                uniform_loss,
-                sparse_loss,
-                refine_loss,
-                L2_loss,
-                hd_loss,
-                loss,
+                repulsion_loss.item(),
+                uniform_loss.item(),
+                sparse_loss.item(),
+                refine_loss.item(),
+                L2_loss.item(),
+                hd_loss.item(),
+                loss.item(),
                 step,
             )  # 写入tensorboard
             total_time = time() - start
             logger.print_info(
                 gpu_time,
                 total_time,
-                sparse_loss,
-                refine_loss,
-                L2_loss,
-                hd_loss,
-                loss,
+                sparse_loss.item(),
+                refine_loss.item(),
+                L2_loss.item(),
+                hd_loss.item(),
+                loss.item(),
                 epoch,
                 step,
             )  # 打印
-        if epoch > 40:
+        if epoch > args.start_eval_epoch:
             # epoch大于40之后再开始求最好的
+            model.eval()
             cd, hd = test(
+                model,
                 npoints,
                 input_val_list,
                 gt_val_list,
@@ -269,7 +274,9 @@ if args.phase == "train":
         )  #
 
 else:
+    model.eval()
     test(
+        model,
         npoints,
         input_val_list,
         gt_val_list,
@@ -291,6 +298,7 @@ else:
             name_list,
         ) = pc_util.get_val_data(args)
         test(
+            model,
             npoints,
             input_val_list,
             gt_val_list,

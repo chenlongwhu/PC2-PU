@@ -99,8 +99,8 @@ class Logger:
     def save_val_data(self, epoch, cd, hd):
         with open(self.val_csv, "a") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=self.fieldnames)
-            cd = "{:.5f}".format((cd * 1000).item())
-            hd = "{:.5f}".format((hd * 1000).item())
+            cd = "{:.5f}".format((cd * 1000))
+            hd = "{:.5f}".format((hd * 1000))
             writer.writerow({"epoch": epoch, "cd": cd, "hd": hd})
 
 
