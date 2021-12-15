@@ -50,6 +50,8 @@ parser.add_argument("--use_hd", type=str2bool, default=False)
 parser.add_argument("--use_uniform", type=str2bool, default=False)
 parser.add_argument("--use_l2", type=bool, default=False)
 parser.add_argument("--use_single_patch", type=bool, default=False)
+parser.add_argument("--is_save_all", type=bool, default=False)
+parser.add_argument("--up_module", type=str, default="shuffle")
 
 parser.add_argument("--repulsion_w", default=1.0, type=float, help="repulsion_weight")
 parser.add_argument("--uniform_w", default=10.0, type=float, help="uniform_weight")

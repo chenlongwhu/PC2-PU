@@ -42,10 +42,6 @@ class Logger:
         L2_loss,
         hd_loss,
         loss,
-        # input,
-        # sparse,
-        # refine,
-        # gt,
         step,
     ):
         self.writer.add_scalar("learning_rate", lr, step)
@@ -57,20 +53,8 @@ class Logger:
         self.writer.add_scalar("L2_loss", L2_loss, step)
         self.writer.add_scalar("hd_loss", hd_loss, step)
         self.writer.add_scalar("total_loss", loss, step)
-        # input = input.permute(1, 0).contiguous().cpu().numpy()
-        # sparse = sparse.detach().cpu().numpy()
-        # refine = refine.detach().cpu().numpy()
-        # gt = gt.detach().cpu().numpy()
-        # input = point_cloud_three_views(input)
-        # sparse = point_cloud_three_views(sparse)
-        # refine = point_cloud_three_views(refine)
-        # gt = point_cloud_three_views(gt)
-        # image = np.concatenate([input, sparse, refine, gt], axis=1)
-        # self.writer.add_image("image", image, step, dataformats="HW")
 
     def log_string(self, msg):
-        # global LOG_FOUT
-        # logging.info(msg)
         print(msg)
         self.LOG_FOUT.write(msg + "\n")
         self.LOG_FOUT.flush()
@@ -131,7 +115,7 @@ def adjust_gamma(feq, epoch):
     return gamma
 
 
-def save_checkpoint(state, is_best, epoch, output_directory):
+def save_checkpoint(state, is_best, is_save_all, epoch, output_directory):
     checkpoint_filename = os.path.join(
         output_directory, "checkpoint-" + str(epoch) + ".pth.tar"
     )
@@ -139,7 +123,7 @@ def save_checkpoint(state, is_best, epoch, output_directory):
     if is_best:
         best_filename = os.path.join(output_directory, "model_best.pth.tar")
         shutil.copyfile(checkpoint_filename, best_filename)
-    if epoch > 0:
+    if not is_save_all:
         prev_checkpoint_filename = os.path.join(
             output_directory, "checkpoint-" + str(epoch - 1) + ".pth.tar"
         )

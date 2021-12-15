@@ -269,6 +269,7 @@ if args.phase == "train":
                 "optimizer": optimizer.state_dict(),
             },
             is_best,
+            args.is_save_all,
             epoch,
             args.log_dir,
         )  #

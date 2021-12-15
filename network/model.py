@@ -178,6 +178,7 @@ class Model(nn.Module):
     def __init__(self, args):
         super(Model, self).__init__()
         self.args = args
+        self.up_module = args.up_module
         self.is_cross_atn = not args.use_single_patch
         self.feature_extractor = feature_extraction()
         self.patch_correlation = transformer(
@@ -186,7 +187,10 @@ class Model(nn.Module):
             transform_dim=args.transform_dim,
             is_cross_atn=self.is_cross_atn,
         )
-        self.up_projection_unit = up_projection_unit()
+        if self.up_module == "shuffle":
+            self.up_unit = node_shuffle(args.up_ratio)
+        else:
+            self.up_unit = up_projection_unit()
 
         self.conv1 = nn.Sequential(
             nn.Conv1d(in_channels=128, out_channels=64, kernel_size=1), nn.ReLU()
@@ -210,7 +214,7 @@ class Model(nn.Module):
     def forward(self, input):
         features = self.feature_extractor(input)  # b,480,n
         features, _ = self.patch_correlation(features, input)
-        H = self.up_projection_unit(features)  # b,128,4*n
+        H = self.up_unit(features)
 
         sparse_coord = self.conv1(H)
         sparse_coord = self.conv2(sparse_coord)
@@ -269,14 +273,57 @@ class transformer(nn.Module):
         k = grouping_operation(k, idx.contiguous().int())
         v = grouping_operation(v, idx.contiguous().int())  # b * dim * k *256
         if self.is_cross_atn:
-            k = k.reshape([-1, 2, self.transform_dim, self.K - 1, N])
-            k = k.flip(1).reshape([-1, self.transform_dim, self.K - 1, N])  # 交换pair
+            k = k.reshape([-1, 2, self.transform_dim, self.K - 1, N]).contiguous()
+            k = k.flip(1).reshape([-1, self.transform_dim, self.K - 1, N]).contiguous()
+            # 交换pair
         attn = self.fc_gamma(q[:, :, None, :] - k + pos_enc)
         attn = F.softmax(attn, dim=-2)  # b x n x k x f
         res = torch.einsum("bmnf,bmnf->bmf", attn, v + pos_enc)
         res = self.conv2(res) + feature
 
         return res, attn
+
+
+class node_shuffle(nn.Module):
+    def __init__(self, scale=2, k=16, d=1, channels=128):
+        super(node_shuffle, self).__init__()
+        self.scale = scale
+        self.conv = nn.Sequential(
+            nn.Conv1d(in_channels=480, out_channels=channels, kernel_size=1), nn.ReLU()
+        )
+        self.edge_conv = edge_conv(channels, channels * scale)
+
+    def forward(self, inputs):
+        B, C, N = inputs.shape[0], inputs.shape[1], inputs.shape[2]
+        net = inputs  # b,480,n
+        net = self.conv(net)  # b,64,n
+        net = self.edge_conv(net)  # b out_channel, 1 ,n
+        net = net.squeeze(-2).contiguous()
+        net = net.reshape([B, -1, self.scale * N]).contiguous()
+        return net
+
+
+class edge_conv(nn.Module):
+    def __init__(self, in_channels, out_channels, k=16):
+        super(edge_conv, self).__init__()
+        self.k = k
+        self.KNN = KNN(self.k + 1)
+        self.conv1 = nn.Conv2d(in_channels, out_channels, 1)
+        self.conv2 = nn.Conv2d(in_channels, out_channels, 1)
+        self.relu = nn.ReLU()
+
+    def forward(self, inputs):  # b c n
+        _, idx = self.KNN(inputs, inputs)
+        idx = idx[:, 1:, :]
+        pc_neighbors = grouping_operation(inputs, idx.contiguous().int())  # b c k n
+        inputs = inputs.unsqueeze(-2).contiguous()
+        pc_central = inputs.repeat([1, 1, self.k, 1]).contiguous()
+        message = self.conv1(pc_neighbors - pc_central)
+        x_center = self.conv2(inputs)
+        edge_features = x_center + message
+        edge_features = self.relu(edge_features)
+        y = torch.max(edge_features, -2, keepdims=True)[0]
+        return y
 
 
 class Generator_recon(nn.Module):
@@ -553,7 +600,10 @@ class Discriminator(nn.Module):
 
 
 if __name__ == "__main__":
-    from utils.configs import args
+    import sys
+
+    sys.path.append("../")
+    from common.configs import args
 
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # params = {"up_ratio": 4, "patch_num_point": 100}
@@ -564,10 +614,11 @@ if __name__ == "__main__":
     # discriminator = Discriminator(params, in_channels=3).cuda()
     # dis_output = discriminator(output)
     # print(dis_output.shape)
-    a = torch.randn([28, 3, 256])
+    a = torch.randn([20, 3, 256])
     a = a.float().cuda()
     f = Model(args).cuda()
-    for name, param in f.named_parameters():
-        if param.requires_grad:
-            print(name)
+    f(a)
+    # for name, param in f.named_parameters():
+    #     if param.requires_grad:
+    #         print(name)
 
