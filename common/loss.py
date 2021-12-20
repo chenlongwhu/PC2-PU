@@ -8,8 +8,9 @@ import math
 
 import pointnet2_ops.pointnet2_utils as pn2_utils
 from chamfer3D.dist_chamfer_3D import chamfer_3DDist
+from emd_module.emd_module import emdModule
 
-from emd.emd import earth_mover_distance
+# from emd.emd import earth_mover_distance
 from knn_cuda import KNN
 
 
@@ -20,15 +21,18 @@ class Loss(nn.Module):
         self.knn_uniform = KNN(k=2, transpose_mode=True)
         self.knn_repulsion = KNN(k=20, transpose_mode=True)
         self.chamLoss = chamfer_3DDist()
+        self.emd = emdModule()
 
-    def get_emd_loss(self, pred, gt, radius=1.0):
+    def get_emd_loss(self, pred, gt, radius=1.0, eps=0.6, iters=512):
         """
         pred and gt is B N 3
         """
-        N = gt.shape[1]
-        dist = earth_mover_distance(pred, gt, transpose=False)
-        dist = dist / N
-        return torch.mean(dist / radius)
+        # N = gt.shape[1]
+        # dist = earth_mover_distance(pred, gt, transpose=False)
+        # dist = dist / N
+        # return torch.mean(dist / radius)
+        dis, _ = self.emd(pred, gt, eps, iters)
+        return torch.mean(torch.sqrt(dis / radius))
 
     # 添加cd loss
     def get_cd_loss(self, pred, gt, radius=1.0):

@@ -1,6 +1,8 @@
 import os
 import random
 from time import time
+from glob import glob
+import matplotlib.pyplot as plt
 
 import numpy as np
 import pointnet2_ops.pointnet2_utils as pointnet2
@@ -276,6 +278,39 @@ if args.phase == "train":
 
 else:
     model.eval()
+    if checkpoint_path != "model_best.pth.tar":
+        checkpoints = glob(os.path.join(args.log_dir, "*.pth.tar"))
+        checkpoints.sort()
+        cds = []
+        hds = []
+        for c in checkpoints:
+            del model
+            torch.cuda.empty_cache()
+            model = Model(args).to(device)
+            checkpoint = None
+            checkpoint = torch.load(c, map_location=device)
+            model.load_state_dict(checkpoint["model"])
+            model = torch.nn.DataParallel(model)
+            model.eval()
+            cd, hd = test(
+                model,
+                npoints,
+                input_val_list,
+                gt_val_list,
+                centroid_val_list,
+                distance_val_list,
+                name_list,
+            )
+            cds.append(cd)
+            hds.append(hd)
+        t = np.arange(0, len(cds))
+        cds = np.array(cds)
+        hds = np.array(hds)
+        d = np.vstack([t, cds, hds])
+        np.savetxt(
+            os.path.join(args.log_dir, "val.csv"), d.T, fmt="%.6f", delimiter=","
+        )
+        exit()
     test(
         model,
         npoints,

@@ -6,8 +6,9 @@ log
 build
 dist
 emd_ext.egg-info
+emd.egg-info
 tmp
 *.out
 *.so
 evaluate
-
+emd_backup
