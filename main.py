@@ -278,7 +278,7 @@ if args.phase == "train":
 
 else:
     model.eval()
-    if checkpoint_path != "model_best.pth.tar":
+    if args.checkpoint_path != "model_best.pth.tar":
         checkpoints = glob(os.path.join(args.log_dir, "*.pth.tar"))
         checkpoints.sort()
         cds = []

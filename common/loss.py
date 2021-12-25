@@ -32,7 +32,9 @@ class Loss(nn.Module):
         # dist = dist / N
         # return torch.mean(dist / radius)
         dis, _ = self.emd(pred, gt, eps, iters)
-        return torch.mean(torch.sqrt(dis / radius))
+        dis = torch.mean(torch.sqrt(dis), dim=1)
+        dis = dis / radius
+        return torch.mean(dis)
 
     # 添加cd loss
     def get_cd_loss(self, pred, gt, radius=1.0):
