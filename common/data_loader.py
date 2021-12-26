@@ -58,14 +58,6 @@ class Dataset(data.Dataset):
         # 归一化
         print("total %d samples" % (len(self.input)))
 
-    def __load_split_file(self):
-        index = np.loadtxt(self.split_dir)
-        index = index.astype(np.int)
-        print(index)
-        self.input = self.input[index, :]
-        self.gt = self.gt[index, :]
-        self.radius = self.radius[index]
-
     def __len__(self):
         return self.input.shape[0]
 

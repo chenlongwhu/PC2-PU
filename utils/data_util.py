@@ -1,5 +1,7 @@
 import numpy as np
+from common.configs import args
 
+np.random.seed(args.seed)
 """
 from knn_cuda import KNN
 
