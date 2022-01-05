@@ -1,10 +1,10 @@
 import os
 import random
-from time import time
 from glob import glob
-import matplotlib.pyplot as plt
+from time import time
 
 import numpy as np
+import nvgpu
 import pointnet2_ops.pointnet2_utils as pointnet2
 import torch
 import torch.backends.cudnn as cudnn
@@ -43,6 +43,8 @@ def test(
     cd_loss, hd_loss = 0.0, 0.0
     num_sample = len(input_val_list)
     out_folder = os.path.join(args.log_dir, args.out_dir)
+    b = 2 * num_gpu
+    N = input_val_list[0].shape[0] // (b)
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
     with torch.no_grad():
@@ -57,9 +59,14 @@ def test(
             input, centorids, furthest_distances = pc_util.normalize_inputs(
                 input_list.numpy()
             )
-            input = input.permute(0, 2, 1).contiguous().float().to(device)
-            _, pred = model(input)
-            pred = pred[::2, :, :]  # n 3 256
+            pred_list = []
+            for j in range(N):
+                torch.cuda.empty_cache()
+                pts = input[b * j : b * (j + 1)]
+                pts = pts.permute(0, 2, 1).contiguous().float().to(device)
+                _, pred = model(pts)
+                pred_list.append(pred[::2, :, :].detach())
+            pred = torch.cat(pred_list)
             pred = pred.permute(0, 2, 1).contiguous()  # n 256 3
             input_list = input_list[::2, :, :]  # n 256 3
             pred = pred * furthest_distances.to(device) + centorids.to(device)
@@ -92,7 +99,6 @@ def test(
         )
     )
     print("测试共花费:{:.6f}s".format(time() - start))
-    del d, c, input, gt, pred, index  # 清楚内存
     torch.cuda.empty_cache()
 
     return cd_loss / num_sample, hd_loss / num_sample
@@ -107,6 +113,7 @@ def setup_seed(seed):
     cudnn.deterministic = True
 
 
+num_gpu = len(nvgpu.available_gpus())
 setup_seed(args.seed)
 device = torch.device("cuda")
 Loss_fn = Loss()
@@ -278,7 +285,7 @@ if args.phase == "train":
 
 else:
     model.eval()
-    if args.checkpoint_path != "model_best.pth.tar":
+    if args.checkpoint_path == "checkpoint-0.pth.tar":
         checkpoints = glob(os.path.join(args.log_dir, "*.pth.tar"))
         checkpoints.sort()
         cds = []
