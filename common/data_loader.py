@@ -92,7 +92,7 @@ class Dataset(data.Dataset):
 class PUGAN_Dataset(data.Dataset):
     def __init__(self, args):
         super().__init__()
-        h5_path = args.data_dir
+        h5_path = "data/train/PUGAN_poisson_256_poisson_1024.h5"
         self.input, self.gt, self.radius = load_pugan_h5_data(h5_path)
         self.data_npoint = args.num_point * args.up_ratio
         self.npoint = args.num_point

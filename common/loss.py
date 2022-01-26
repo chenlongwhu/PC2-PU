@@ -23,7 +23,7 @@ class Loss(nn.Module):
         self.chamLoss = chamfer_3DDist()
         self.emd = emdModule()
 
-    def get_emd_loss(self, pred, gt, radius=1.0, eps=0.6, iters=512):
+    def get_emd_loss(self, pred, gt, radius=1.0, eps=1.0, iters=512):
         """
         pred and gt is B N 3
         """
@@ -110,10 +110,10 @@ class Loss(nn.Module):
 
     def get_l2_regular_loss(self, model, alpha):
         l2_loss = torch.tensor(0.0, requires_grad=True)
-        for _, param in model.named_parameters():
-            # if "bias" not in name:  # 一般不对偏置项使用正则
-            l2_loss = l2_loss + (0.5 * alpha * torch.sum(torch.pow(param, 2)))
-        return l2_loss
+        for name, param in model.named_parameters():
+            if "bias" not in name:  # 一般不对偏置项使用正则
+                l2_loss = torch.norm(param)
+        return alpha * l2_loss
 
     def get_discriminator_loss(self, pred_fake, pred_real):
         real_loss = torch.mean((pred_real - 1) ** 2)

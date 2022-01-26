@@ -44,7 +44,7 @@ class get_edge_feature(nn.Module):
 
 
 class denseconv(nn.Module):
-    def __init__(self, growth_rate=64, k=16, in_channels=6, isTrain=True):
+    def __init__(self, growth_rate=64, k=16, in_channels=6):
         super(denseconv, self).__init__()
         self.k = k
         self.edge_feature_model = get_edge_feature(k=k)
@@ -90,11 +90,11 @@ class denseconv(nn.Module):
 
 
 class feature_extraction(nn.Module):
-    def __init__(self):
+    def __init__(self, growth_rate=24, dense_n=3, k=16):
         super(feature_extraction, self).__init__()
-        self.growth_rate = 24
-        self.dense_n = 3
-        self.knn = 16
+        self.growth_rate = growth_rate
+        self.dense_n = dense_n
+        self.k = k
         self.input_channel = 3
         comp = self.growth_rate * 2
         """
@@ -111,20 +111,27 @@ class feature_extraction(nn.Module):
             nn.ReLU(),
         )
         self.denseconv1 = denseconv(
-            in_channels=24, growth_rate=self.growth_rate
-        )  # return batch_size,(3*24+48)=120,num_points
+            in_channels=24, growth_rate=self.growth_rate, k=self.k
+        )
+        # return batch_size,(3*24+48)=120,num_points
         self.conv2 = nn.Sequential(
             Conv1d(in_channels=120, out_channels=comp, kernel_size=1), nn.ReLU()
         )
-        self.denseconv2 = denseconv(in_channels=comp, growth_rate=self.growth_rate)
+        self.denseconv2 = denseconv(
+            in_channels=comp, growth_rate=self.growth_rate, k=self.k
+        )
         self.conv3 = nn.Sequential(
             Conv1d(in_channels=240, out_channels=comp, kernel_size=1), nn.ReLU()
         )
-        self.denseconv3 = denseconv(in_channels=comp, growth_rate=self.growth_rate)
+        self.denseconv3 = denseconv(
+            in_channels=comp, growth_rate=self.growth_rate, k=self.k
+        )
         self.conv4 = nn.Sequential(
             Conv1d(in_channels=360, out_channels=comp, kernel_size=1), nn.ReLU()
         )
-        self.denseconv4 = denseconv(in_channels=comp, growth_rate=self.growth_rate)
+        self.denseconv4 = denseconv(
+            in_channels=comp, growth_rate=self.growth_rate, k=self.k
+        )
 
     def forward(self, input):
         l0_features = self.conv1(input)  # b,24,n
@@ -179,13 +186,15 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.args = args
         self.up_module = args.up_module
+        self.num_point = args.num_point
         self.is_cross_atn = not args.use_single_patch
-        self.feature_extractor = feature_extraction()
+        self.feature_extractor = feature_extraction(k=self.args.K)
         self.patch_correlation = transformer(
             K=self.args.K1,
             in_channel=480,
             transform_dim=args.transform_dim,
             is_cross_atn=self.is_cross_atn,
+            is_pos_encoder=True,
         )
         if self.up_module == "shuffle":
             self.up_unit = node_shuffle(args.up_ratio)
@@ -203,6 +212,7 @@ class Model(nn.Module):
             in_channel=128,
             transform_dim=args.transform_dim,
             is_cross_atn=False,
+            is_pos_encoder=True,
         )
         self.conv3 = nn.Sequential(
             nn.Conv1d(in_channels=128, out_channels=64, kernel_size=1), nn.ReLU()
@@ -213,6 +223,7 @@ class Model(nn.Module):
 
     def forward(self, input):
         features = self.feature_extractor(input)  # b,480,n
+
         features, _ = self.patch_correlation(features, input)
         H = self.up_unit(features)
 
@@ -228,24 +239,46 @@ class Model(nn.Module):
 
 
 class transformer(nn.Module):
-    def __init__(self, K, in_channel, transform_dim, is_cross_atn):
+    def __init__(self, K, in_channel, transform_dim, is_cross_atn, is_pos_encoder):
         super(transformer, self).__init__()
         self.K = K + 1
         self.KNN = KNN(self.K)
         self.in_channel = in_channel
         self.transform_dim = transform_dim
         self.is_cross_atn = is_cross_atn
+        self.is_pos_encoder = is_pos_encoder
+        if self.is_cross_atn:
+            self.head = 2
+            self.conv2 = nn.Sequential(
+                nn.Conv1d(self.transform_dim * 2, self.transform_dim, 1),
+                nn.ReLU(),
+                nn.Conv1d(self.transform_dim, self.in_channel, 1),
+            )
+        else:
+            self.head = 1
+            self.conv2 = nn.Conv1d(self.transform_dim, self.in_channel, 1)
+        # self.head = 1
+        # self.conv2 = nn.Conv1d(self.transform_dim, self.in_channel, 1)
+        self.gamma_dim = self.transform_dim // self.head
         self.conv1 = nn.Conv1d(self.in_channel, self.transform_dim, 1)
-        self.conv2 = nn.Conv1d(self.transform_dim, self.in_channel, 1)
-        self.fc_delta = nn.Sequential(
-            nn.Conv2d(10, 64, [1, 1]),
-            nn.ReLU(),
-            nn.Conv2d(64, self.transform_dim, [1, 1]),
-        )
+        if self.is_pos_encoder:
+            self.fc_delta = nn.Sequential(
+                nn.Conv2d(10, 64, [1, 1]),
+                nn.ReLU(),
+                nn.Conv2d(64, self.transform_dim, [1, 1]),
+            )
+        else:
+            self.fc_delta = nn.Sequential(
+                nn.Conv2d(3, 10, [1, 1]),
+                nn.ReLU(),
+                nn.Conv2d(10, 64, [1, 1]),
+                nn.ReLU(),
+                nn.Conv2d(64, self.transform_dim, [1, 1]),
+            )
         self.fc_gamma = nn.Sequential(
-            nn.Conv2d(self.transform_dim, 4 * self.transform_dim, [1, 1]),
+            nn.Conv2d(self.gamma_dim, 4 * self.gamma_dim, [1, 1],),
             nn.ReLU(),
-            nn.Conv2d(4 * self.transform_dim, self.transform_dim, [1, 1]),
+            nn.Conv2d(4 * self.gamma_dim, self.gamma_dim, [1, 1],),
         )
         self.w_qs = nn.Conv1d(self.transform_dim, self.transform_dim, 1)
         self.w_ks = nn.Conv1d(self.transform_dim, self.transform_dim, 1)
@@ -259,26 +292,58 @@ class transformer(nn.Module):
         N = xyz.shape[-1]
         group_xyz = grouping_operation(xyz, idx.contiguous().int())  # b 3 k n
         rel_xyz = xyz[:, :, None, :] - group_xyz  # b 3 k n
-        rel_pos = torch.cat(
-            [
-                xyz.unsqueeze(2).repeat(1, 1, self.K - 1, 1),
-                group_xyz,
-                rel_xyz,
-                torch.norm(rel_xyz, dim=1, keepdim=True),
-            ],
-            dim=1,
-        )  # b 10 k 256
+        if self.is_pos_encoder:
+            rel_pos = torch.cat(
+                [
+                    xyz.unsqueeze(2).repeat(1, 1, self.K - 1, 1),
+                    group_xyz,
+                    rel_xyz,
+                    torch.norm(rel_xyz, dim=1, keepdim=True),
+                ],
+                dim=1,
+            )  # b 10 k 256
+        else:
+            rel_pos = xyz.unsqueeze(2).repeat(1, 1, self.K - 1, 1)
         pos_enc = self.fc_delta(rel_pos)  # 距离编码 b * dim * k * 256
         q, k, v = self.w_qs(x), self.w_ks(x), self.w_vs(x)  # b* dim * 256
         k = grouping_operation(k, idx.contiguous().int())
         v = grouping_operation(v, idx.contiguous().int())  # b * dim * k *256
         if self.is_cross_atn:
-            k = k.reshape([-1, 2, self.transform_dim, self.K - 1, N]).contiguous()
-            k = k.flip(1).reshape([-1, self.transform_dim, self.K - 1, N]).contiguous()
-            # 交换pair
-        attn = self.fc_gamma(q[:, :, None, :] - k + pos_enc)
-        attn = F.softmax(attn, dim=-2)  # b x n x k x f
-        res = torch.einsum("bmnf,bmnf->bmf", attn, v + pos_enc)
+            # k_pair = k.reshape([-1, 2, self.transform_dim, self.K - 1, N]).contiguous()
+            # k_pair = (
+            #     k.flip(1).reshape([-1, self.transform_dim, self.K - 1, N]).contiguous()
+            # )
+            k_pair = k.reshape([-1, 2, self.transform_dim, self.K - 1, N]).contiguous()
+            k_pair = (
+                k_pair.flip(1)
+                .reshape([-1, self.transform_dim, self.K - 1, N])
+                .contiguous()
+            )
+            # 获取k_pair
+            res = []
+            attn = []
+            d = self.transform_dim // 4
+            for i in range(4):
+                v0 = v[:, i * d : (i + 1) * d, :, :].repeat(1, 2, 1, 1)
+                p0 = pos_enc[:, i * d : (i + 1) * d, :, :].repeat(1, 2, 1, 1)
+                k0 = torch.cat(
+                    [
+                        k[:, i * d : (i + 1) * d, :, :],
+                        k_pair[:, i * d : (i + 1) * d, :, :],
+                    ],
+                    1,
+                )
+                q0 = q[:, i * d : (i + 1) * d, :].unsqueeze(-2).repeat(1, 2, 1, 1)
+                a = self.fc_gamma(q0 - k0 + p0)
+                a = F.softmax(a, dim=-2)
+                attn.append(a)
+                res.append(torch.einsum("bmnf,bmnf->bmf", a, v0 + p0))
+            res = torch.cat(res, dim=1)
+            attn = torch.cat(attn, dim=1)
+        else:
+            attn = self.fc_gamma(q[:, :, None, :] - k + pos_enc)
+            attn = F.softmax(attn, dim=-2)  # b x n x k x f
+            res = torch.einsum("bmnf,bmnf->bmf", attn, v + pos_enc)
         res = self.conv2(res) + feature
 
         return res, attn

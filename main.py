@@ -104,17 +104,24 @@ def test(
     return cd_loss / num_sample, hd_loss / num_sample
 
 
-def setup_seed(seed):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-    cudnn.benchmark = False
-    cudnn.deterministic = True
+def seed_worker(worker_id):
+    worker_seed = args.seed
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
+
+seed = args.seed
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+np.random.seed(seed)
+random.seed(seed)
+cudnn.benchmark = False
+cudnn.deterministic = True
+g = torch.Generator()
+g.manual_seed(seed)
 
 num_gpu = len(nvgpu.available_gpus())
-setup_seed(args.seed)
 device = torch.device("cuda")
 Loss_fn = Loss()
 
@@ -159,6 +166,8 @@ if args.phase == "train":
             shuffle=True,
             num_workers=args.num_workers,
             pin_memory=True,
+            worker_init_fn=seed_worker,
+            generator=g,
         )
     else:
         train_dataset = Dataset(args)
@@ -168,6 +177,8 @@ if args.phase == "train":
             shuffle=True,
             num_workers=args.num_workers,
             pin_memory=True,
+            worker_init_fn=seed_worker,
+            generator=g,
         )
     n_set = len(train_data_loader)
     for epoch in range(start_epoch, args.training_epoch):

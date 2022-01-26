@@ -90,10 +90,10 @@ class Logger:
 
 def adjust_learning_rate(args, epoch, optimizer):
     lr0 = args.base_lr
-    radio = args.lr_decay_radio
+    ratio = args.lr_decay_ratio
     lr = lr0
     if epoch >= args.start_decay_epoch:
-        lr = lr0 * (1 - radio) ** (
+        lr = lr0 * (1 - ratio) ** (
             (epoch - args.start_decay_epoch) // args.lr_decay_epoch
         )
     lr = max(args.lr_clip, lr)
