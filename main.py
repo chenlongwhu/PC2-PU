@@ -74,7 +74,7 @@ def test(
                 pc_util.patch_visualize(
                     input_list.numpy(), pred.cpu().numpy(), out_folder, name_list[i],
                 )
-            pred = pred * d + c  # 去归一化
+            pred = pred * d + c  # denormalize
             pred = pred.reshape([1, -1, 3])
             index = pointnet2.furthest_point_sample(pred, npoints * args.up_ratio)
             pred = pred.squeeze(0)[index.squeeze(0).long()]
@@ -82,7 +82,6 @@ def test(
                 os.path.join(out_folder, name_list[i]), pred.cpu().numpy(), fmt="%.6f"
             )
 
-            # 针对上采样不同倍数设计
             if pred.shape[0] == gt.shape[1]:
                 pred, _, _ = pc_util.normalize_point_cloud(pred.cpu().numpy())
                 pred = torch.from_numpy(pred).unsqueeze(0).contiguous().to(device)
@@ -98,24 +97,23 @@ def test(
             (cd_loss / num_sample * 1000), (hd_loss / num_sample * 1000)
         )
     )
-    print("测试共花费:{:.6f}s".format(time() - start))
+    print("It spend :{:.6f}s".format(time() - start))
     torch.cuda.empty_cache()
 
     return cd_loss / num_sample, hd_loss / num_sample
 
 
-def seed_worker(worker_id):
-    worker_seed = args.seed
-    np.random.seed(worker_seed)
-    random.seed(worker_seed)
+def _init_fn(work_id):
+    np.random.seed(args.seed + work_id)
 
 
+os.environ["PYTHONHASHSEED"] = str(args.seed)
 seed = args.seed
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
-np.random.seed(seed)
 random.seed(seed)
+np.random.seed(args.seed)
 cudnn.benchmark = False
 cudnn.deterministic = True
 g = torch.Generator()
@@ -154,11 +152,11 @@ if checkpoint:
     optimizer.load_state_dict(checkpoint["optimizer"])
     print("=> checkpoint state loaded.")
 else:
-    model.apply(xavier_init)  # 参数初始化
+    model.apply(xavier_init)  # init
 model = torch.nn.DataParallel(model)
-# 多GPU训练
+# Multi GPU
 if args.phase == "train":
-    if args.use_single_patch:
+    if args.use_big_patch:
         train_dataset = PUGAN_Dataset(args)
         train_data_loader = DataLoader(
             dataset=train_dataset,
@@ -166,8 +164,8 @@ if args.phase == "train":
             shuffle=True,
             num_workers=args.num_workers,
             pin_memory=True,
-            worker_init_fn=seed_worker,
             generator=g,
+            worker_init_fn=_init_fn,
         )
     else:
         train_dataset = Dataset(args)
@@ -177,8 +175,8 @@ if args.phase == "train":
             shuffle=True,
             num_workers=args.num_workers,
             pin_memory=True,
-            worker_init_fn=seed_worker,
             generator=g,
+            worker_init_fn=_init_fn,
         )
     n_set = len(train_data_loader)
     for epoch in range(start_epoch, args.training_epoch):
@@ -186,7 +184,7 @@ if args.phase == "train":
         is_best = False
         lr = adjust_learning_rate(args, epoch, optimizer)
         gamma = adjust_gamma(args.fidelity_feq, epoch)
-        # 调整学习率
+        # adjust gamma
         for idx, (input, gt, radius) in enumerate(train_data_loader):
             start = time()
             optimizer.zero_grad()
@@ -252,7 +250,7 @@ if args.phase == "train":
                 hd_loss.item(),
                 loss.item(),
                 step,
-            )  # 写入tensorboard
+            )  # tensorboard
             total_time = time() - start
             logger.print_info(
                 gpu_time,
@@ -264,9 +262,8 @@ if args.phase == "train":
                 loss.item(),
                 epoch,
                 step,
-            )  # 打印
+            )  # print
         if epoch > args.start_eval_epoch:
-            # epoch大于40之后再开始求最好的
             model.eval()
             cd, hd = test(
                 model,
@@ -338,7 +335,7 @@ else:
         distance_val_list,
         name_list,
     )
-    # 4倍上采样
+    # r = 4
     if args.n_upsample == 2:
         args.test_dir = os.path.join(args.log_dir, args.out_dir)
         args.out_dir = "{}_up_2".format(args.out_dir)
@@ -360,5 +357,5 @@ else:
             distance_val_list,
             name_list,
         )
-    # 16倍上采样
+    # r = 16
 

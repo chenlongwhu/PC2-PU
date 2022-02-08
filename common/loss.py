@@ -10,7 +10,6 @@ import pointnet2_ops.pointnet2_utils as pn2_utils
 from chamfer3D.dist_chamfer_3D import chamfer_3DDist
 from emd_module.emd_module import emdModule
 
-# from emd.emd import earth_mover_distance
 from knn_cuda import KNN
 
 
@@ -27,16 +26,11 @@ class Loss(nn.Module):
         """
         pred and gt is B N 3
         """
-        # N = gt.shape[1]
-        # dist = earth_mover_distance(pred, gt, transpose=False)
-        # dist = dist / N
-        # return torch.mean(dist / radius)
         dis, _ = self.emd(pred, gt, eps, iters)
         dis = torch.mean(torch.sqrt(dis), dim=1)
         dis = dis / radius
         return torch.mean(dis)
 
-    # 添加cd loss
     def get_cd_loss(self, pred, gt, radius=1.0):
         """
         pred and gt is B N 3
@@ -88,7 +82,6 @@ class Loss(nn.Module):
             )  # B*N nsample C
 
             dist, _ = self.knn_uniform(grouped_pcd, grouped_pcd)
-            # print(dist.shape)
             uniform_dist = dist[:, :, 1:]  # B*N nsample 1
             uniform_dist = torch.abs(uniform_dist + 1e-8)
             uniform_dist = torch.mean(uniform_dist, dim=1)
@@ -111,7 +104,7 @@ class Loss(nn.Module):
     def get_l2_regular_loss(self, model, alpha):
         l2_loss = torch.tensor(0.0, requires_grad=True)
         for name, param in model.named_parameters():
-            if "bias" not in name:  # 一般不对偏置项使用正则
+            if "bias" not in name:
                 l2_loss = torch.norm(param)
         return alpha * l2_loss
 

@@ -1,14 +1,9 @@
 import csv
 import os
 import shutil
-import sys
 
 import torch
-import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-
-sys.path.append("../")
-# from utils.visu_utils import point_cloud_three_views
 
 
 class Logger:

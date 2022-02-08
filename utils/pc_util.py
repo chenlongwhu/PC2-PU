@@ -9,7 +9,7 @@ from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
 
 
-def load(filename, count=None):
+def load(filename):
     points = np.loadtxt(filename).astype(np.float32)
     return points
 
@@ -33,7 +33,7 @@ def normalize_point_cloud(input):
 
 
 def get_val_data(args):
-    print(".....准备测试数据.......")
+    print(".....perparing test data.......")
     start = time()
     samples = glob(os.path.join(args.test_dir, "*.xyz"))
     input_val_list = []
@@ -45,7 +45,7 @@ def get_val_data(args):
     for i in range(n_samples):
         input = load(samples[i])
         npoints = input.shape[0]
-        input, centroid, furthest_distance = normalize_point_cloud(input)  # 归一化
+        input, centroid, furthest_distance = normalize_point_cloud(input)  #
         input_list = []
         input_cuda = input.reshape(1, -1, 3)
         input_cuda = torch.from_numpy(input_cuda).cuda()
@@ -58,7 +58,7 @@ def get_val_data(args):
         )
         patches = extract_knn_patch(seed_coor, input, args.num_point)
         for j in range(seed_num):
-            if args.use_single_patch:
+            if args.use_big_patch:
                 idx = j
             else:
                 idx = find_best_neighbor(patches, seed_sort[j, 1:4], j)
@@ -70,7 +70,7 @@ def get_val_data(args):
         gt_val_list.append(torch.from_numpy(gt))
         centroid_val_list.append(torch.from_numpy(centroid))
         distance_val_list.append(torch.from_numpy(furthest_distance))
-    print("测试数据准备完毕,共花费: {:.4f} s".format(time() - start))
+    print("data is done, It spend : {:.4f} s".format(time() - start))
 
     return (
         npoints,
@@ -87,15 +87,6 @@ def extract_knn_patch(query, pc, k):
     queries [M, C]
     pc [P, C]
     """
-    # knn = KNN(k)
-    # query = torch.from_numpy(query)  # 24 3
-    # query = query.unsqueeze(0).permute(0, 2, 1).contiguous().cuda()
-    # pc = torch.from_numpy(pc)
-    # pc = pc.unsqueeze(0).permute(0, 2, 1).contiguous().cuda()
-    # _, idx = knn(pc, query)  # 1 24 256
-    # patches = pointnet2.grouping_operation(pc, idx.contiguous().int())  # 1 3 k n
-    # patches = patches.squeeze(0).permute(2, 1, 0).contiguous()
-    # k_patches = patches.cpu().numpy()
     knn_search = NearestNeighbors(n_neighbors=k, algorithm="auto")
     knn_search.fit(pc)
     knn_idx = knn_search.kneighbors(query, return_distance=False)
@@ -113,12 +104,12 @@ def find_best_neighbor(patches, idxs, index):
         if len(overlap):
             db = DBSCAN(eps=0.1, min_samples=10)
             db.fit(overlap)
-            # 找到重复的点
+            # find the overlap
             n_clusters = len(np.unique(db.labels_))
         else:
             n_clusters = 0
         counts.append(n_clusters)
-        # 找到聚类数目最多的返回
+        # get the max
     return idxs[counts.index(max(counts))]
 
 

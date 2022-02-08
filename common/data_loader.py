@@ -18,8 +18,8 @@ def load_h5_data(filename):
 
 def load_pugan_h5_data(filename):
     f = h5py.File(filename, "r")
-    input = f["poisson_1024"][:]
-    gt = f["poisson_1024"][:]
+    input = f["poisson_2048"][:]
+    gt = f["poisson_2048"][:]
     data_radius = np.ones(shape=(len(input)))
     gt, centroid, furthest_distance = normalize_point_cloud(gt)
     input[:, :, 0:3] = input[:, :, 0:3] - centroid
@@ -42,9 +42,7 @@ class Dataset(data.Dataset):
         self.jitter_max = args.jitter_max
 
         centroid = np.mean(self.gt[:, :, 0:3], axis=1, keepdims=True)
-        # 算出每一个的平均值
         self.gt[:, :, 0:3] = self.gt[:, :, 0:3] - centroid
-        # 中心化
         furthest_distance = np.amax(
             np.sqrt(np.sum(self.gt[:, :, 0:3] ** 2, axis=-1)), axis=1, keepdims=True
         )
@@ -55,7 +53,6 @@ class Dataset(data.Dataset):
         self.input[:, :, 0:3] = self.input[:, :, 0:3] / np.expand_dims(
             furthest_distance, axis=-1
         )
-        # 归一化
         print("total %d samples" % (len(self.input)))
 
     def __len__(self):
@@ -92,7 +89,7 @@ class Dataset(data.Dataset):
 class PUGAN_Dataset(data.Dataset):
     def __init__(self, args):
         super().__init__()
-        h5_path = "data/train/PUGAN_poisson_256_poisson_1024.h5"
+        h5_path = "data/train/MYNET_big_patch_{}.h5".format(args.num_point * 4)
         self.input, self.gt, self.radius = load_pugan_h5_data(h5_path)
         self.data_npoint = args.num_point * args.up_ratio
         self.npoint = args.num_point
@@ -100,7 +97,6 @@ class PUGAN_Dataset(data.Dataset):
         self.jitter_sigma = args.jitter_sigma
         self.jitter_max = args.jitter_max
 
-        # 归一化
         print("total %d samples" % (len(self.input)))
 
     def __len__(self):
@@ -117,7 +113,6 @@ class PUGAN_Dataset(data.Dataset):
         input_data = np.expand_dims(input_data, axis=0)
         gt_data = np.expand_dims(gt_data, axis=0)
         if self.augment:
-            # for data aug
             input_data = utils.jitter_perturbation_point_cloud(
                 input_data, sigma=self.jitter_sigma, clip=self.jitter_max
             )
@@ -134,8 +129,7 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from configs import args
 
-    args.data_dir = "../data/train/PUGAN_poisson_256_poisson_1024.h5"
-    # args.data_dir = "../data/train/PC2-PU.h5"
+    args.data_dir = "../data/train/PC2-PU.h5"
 
     dataset = PUGAN_Dataset(args)
     train_data_loader = DataLoader(
@@ -148,9 +142,3 @@ if __name__ == "__main__":
     for i, (input, gt, radius) in enumerate(train_data_loader):
         print(input.shape, gt.shape, radius.shape)
         exit()
-    # (input_data,gt_data,radius_data)=dataset.__getitem__(0)
-    # print(input_data.shape,gt_data.shape,radius_data.shape)
-    # dataset=PUNET_Dataset_Whole(data_dir="../MC_5k",n_input=1024)
-    # points=dataset.__getitem__(0)
-    # print(points.shape)
-

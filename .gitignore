@@ -11,5 +11,6 @@ tmp
 *.out
 *.so
 evaluate
-emd_backup
 test
+result
+*.sh

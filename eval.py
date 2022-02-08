@@ -19,7 +19,7 @@ def compute_p2f(folder):
         point_path = os.path.join(folder, name[:-4] + ".xyz")
         commands = ["./evaluate", mesh_path, point_path]
         subprocess.run(commands, stdout=devNull)
-    print("计算完成")
+    print("compute done")
 
 
 parser = argparse.ArgumentParser()
@@ -31,7 +31,6 @@ print(FLAGS.pred)
 PRED_DIR = [os.path.abspath(p) for p in FLAGS.pred]
 GT_DIR = os.path.abspath(FLAGS.gt)
 MESH_DIR = os.path.abspath("data/mesh")
-# 获取真值和gt的文件夹
 
 if not os.path.exists(FLAGS.out_folder):
     os.makedirs(FLAGS.out_folder)
@@ -42,7 +41,6 @@ gt_names = [os.path.basename(p) for p in gt_paths]
 gt_data = [load(p) for p in gt_paths]
 gt_data = np.stack(gt_data)
 gt_data, _, _ = normalize_point_cloud(gt_data)
-# 获取归一化后的gt
 
 fieldnames = ["name", "CD", "HD", "p2f avg", "p2f std"]
 counter = len(gt_paths)
@@ -76,7 +74,6 @@ for D in PRED_DIR:
                 break
             pred = load(pred_path)
             pred, _, _ = normalize_point_cloud(pred)
-            # 归一化
 
             gt = torch.from_numpy(gt).unsqueeze(0).contiguous().cuda()
             pred = torch.from_numpy(pred).unsqueeze(0).contiguous().cuda()
@@ -110,6 +107,6 @@ for D in PRED_DIR:
             row["p2f std"] = "{:.6f}".format(std_p2f)
         writer.writerow(row)
 
-print("评估共花费:{:.4f}s".format(time() - start))
+print("It spend :{:.4f}s".format(time() - start))
 print("done")
 

@@ -187,7 +187,7 @@ class Model(nn.Module):
         self.args = args
         self.up_module = args.up_module
         self.num_point = args.num_point
-        self.is_cross_atn = not args.use_single_patch
+        self.is_cross_atn = not args.use_big_patch
         self.feature_extractor = feature_extraction(k=self.args.K)
         self.patch_correlation = transformer(
             K=self.args.K1,
@@ -257,8 +257,6 @@ class transformer(nn.Module):
         else:
             self.head = 1
             self.conv2 = nn.Conv1d(self.transform_dim, self.in_channel, 1)
-        # self.head = 1
-        # self.conv2 = nn.Conv1d(self.transform_dim, self.in_channel, 1)
         self.gamma_dim = self.transform_dim // self.head
         self.conv1 = nn.Conv1d(self.in_channel, self.transform_dim, 1)
         if self.is_pos_encoder:
@@ -301,25 +299,21 @@ class transformer(nn.Module):
                     torch.norm(rel_xyz, dim=1, keepdim=True),
                 ],
                 dim=1,
-            )  # b 10 k 256
+            )  # b 10 k 64
         else:
             rel_pos = xyz.unsqueeze(2).repeat(1, 1, self.K - 1, 1)
-        pos_enc = self.fc_delta(rel_pos)  # 距离编码 b * dim * k * 256
-        q, k, v = self.w_qs(x), self.w_ks(x), self.w_vs(x)  # b* dim * 256
+        pos_enc = self.fc_delta(rel_pos)  # b * dim * k * 64
+        q, k, v = self.w_qs(x), self.w_ks(x), self.w_vs(x)  # b* dim * 64
         k = grouping_operation(k, idx.contiguous().int())
-        v = grouping_operation(v, idx.contiguous().int())  # b * dim * k *256
+        v = grouping_operation(v, idx.contiguous().int())  # b * dim * k *64
         if self.is_cross_atn:
-            # k_pair = k.reshape([-1, 2, self.transform_dim, self.K - 1, N]).contiguous()
-            # k_pair = (
-            #     k.flip(1).reshape([-1, self.transform_dim, self.K - 1, N]).contiguous()
-            # )
             k_pair = k.reshape([-1, 2, self.transform_dim, self.K - 1, N]).contiguous()
             k_pair = (
                 k_pair.flip(1)
                 .reshape([-1, self.transform_dim, self.K - 1, N])
                 .contiguous()
             )
-            # 获取k_pair
+            # k_pair
             res = []
             attn = []
             d = self.transform_dim // 4
@@ -436,7 +430,6 @@ class attention_unit(nn.Module):
             Conv1d(in_channels=in_channels, out_channels=in_channels, kernel_size=1),
             nn.ReLU(),
         )
-        # self.gamma = nn.Parameter(torch.tensor(torch.zeros([1]))).cuda()
         self.gamma = nn.Parameter(
             torch.zeros([1]).clone().detach().requires_grad_(True)
         )
@@ -465,7 +458,6 @@ class up_block(nn.Module):
         self.conv2 = nn.Sequential(
             Conv1d(in_channels=256, out_channels=128, kernel_size=1), nn.ReLU()
         )
-        # self.grid = torch.tensor(self.gen_grid(up_ratio)).cuda()
         self.grid = self.gen_grid(up_ratio).clone().detach()
         self.attention_unit = attention_unit(in_channels=in_channels)
 
@@ -669,21 +661,19 @@ if __name__ == "__main__":
 
     sys.path.append("../")
     from common.configs import args
+    from time import time
+    from thop import profile
+    from ptflops import get_model_complexity_info
 
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # params = {"up_ratio": 4, "patch_num_point": 100}
-    # generator = Generator(params).cuda()
-    # point_cloud = torch.rand(4, 3, 100).cuda()
-    # output = generator(point_cloud)
-    # print(output.shape)
-    # discriminator = Discriminator(params, in_channels=3).cuda()
-    # dis_output = discriminator(output)
-    # print(dis_output.shape)
-    a = torch.randn([20, 3, 256])
+    a = torch.randn([2, 3, 256])
     a = a.float().cuda()
     f = Model(args).cuda()
-    f(a)
-    # for name, param in f.named_parameters():
-    #     if param.requires_grad:
-    #         print(name)
+    # for i in range(20):
+    #     start = time()
+    #     result = f(a)
+    #     end = time()
+    #     print((end - start) / 2)
+    # flops, params = profile(f, inputs=(a,))
+    flops, params = get_model_complexity_info(f, (3, 256))
+    print(flops, params)
 
