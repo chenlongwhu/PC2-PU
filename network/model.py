@@ -1,4 +1,5 @@
 import sys
+from turtle import pos
 
 sys.path.append("../")
 import torch
@@ -194,7 +195,7 @@ class Model(nn.Module):
             in_channel=480,
             transform_dim=args.transform_dim,
             is_cross_atn=self.is_cross_atn,
-            is_pos_encoder=True,
+            is_pos_encoder=False,
         )
         if self.up_module == "shuffle":
             self.up_unit = node_shuffle(args.up_ratio)
@@ -247,24 +248,24 @@ class transformer(nn.Module):
         self.transform_dim = transform_dim
         self.is_cross_atn = is_cross_atn
         self.is_pos_encoder = is_pos_encoder
-        if self.is_cross_atn:
-            self.head = 2
-            self.conv2 = nn.Sequential(
-                nn.Conv1d(self.transform_dim * 2, self.transform_dim, 1),
-                nn.ReLU(),
-                nn.Conv1d(self.transform_dim, self.in_channel, 1),
-            )
-        else:
-            self.head = 1
-            self.conv2 = nn.Conv1d(self.transform_dim, self.in_channel, 1)
-        self.gamma_dim = self.transform_dim // self.head
+        self.gamma_dim = self.transform_dim
         self.conv1 = nn.Conv1d(self.in_channel, self.transform_dim, 1)
+        self.conv2 = nn.Conv1d(self.transform_dim, self.in_channel, 1)
         if self.is_pos_encoder:
-            self.fc_delta = nn.Sequential(
-                nn.Conv2d(10, 64, [1, 1]),
-                nn.ReLU(),
-                nn.Conv2d(64, self.transform_dim, [1, 1]),
-            )
+            if self.is_cross_atn:
+                self.fc_delta = nn.Sequential(
+                    nn.Conv2d(20, 10, [1, 1]),
+                    nn.Tanh(),
+                    nn.Conv2d(10, 64, [1, 1]),
+                    nn.ReLU(),
+                    nn.Conv2d(64, self.transform_dim, [1, 1]),
+                )
+            else:
+                self.fc_delta = nn.Sequential(
+                    nn.Conv2d(10, 64, [1, 1]),
+                    nn.ReLU(),
+                    nn.Conv2d(64, self.transform_dim, [1, 1]),
+                )
         else:
             self.fc_delta = nn.Sequential(
                 nn.Conv2d(3, 10, [1, 1]),
@@ -291,53 +292,50 @@ class transformer(nn.Module):
         group_xyz = grouping_operation(xyz, idx.contiguous().int())  # b 3 k n
         rel_xyz = xyz[:, :, None, :] - group_xyz  # b 3 k n
         if self.is_pos_encoder:
-            rel_pos = torch.cat(
-                [
-                    xyz.unsqueeze(2).repeat(1, 1, self.K - 1, 1),
-                    group_xyz,
-                    rel_xyz,
-                    torch.norm(rel_xyz, dim=1, keepdim=True),
-                ],
-                dim=1,
-            )  # b 10 k 64
+            if self.is_cross_atn:
+                pair_xyz = xyz.reshape(-1, 3, 2 * N).contiguous()
+                _, pair_idx = self.KNN(pair_xyz, pair_xyz)
+                pair_idx = pair_idx[:, 1:, :]
+                pair_group_xyz = grouping_operation(
+                    pair_xyz, pair_idx.contiguous().int()
+                )
+                pair_rel_xyz = pair_xyz[:, :, None, :] - pair_group_xyz
+                pair_group_xyz = pair_group_xyz.reshape(-1, 3, self.K - 1, N)
+                pair_rel_xyz = pair_rel_xyz.reshape(-1, 3, self.K - 1, N)
+                rel_pos = torch.cat(
+                    [
+                        xyz.unsqueeze(2).repeat(1, 1, self.K - 1, 1),
+                        pair_rel_xyz
+                        - rel_xyz
+                        + xyz.unsqueeze(2).repeat(1, 1, self.K - 1, 1),
+                        group_xyz,
+                        pair_group_xyz,
+                        rel_xyz,
+                        pair_rel_xyz,
+                        torch.norm(rel_xyz, dim=1, keepdim=True),
+                        torch.norm(pair_rel_xyz, dim=1, keepdim=True),
+                    ],
+                    dim=1,
+                )
+            else:
+                rel_pos = torch.cat(
+                    [
+                        xyz.unsqueeze(2).repeat(1, 1, self.K - 1, 1),
+                        group_xyz,
+                        rel_xyz,
+                        torch.norm(rel_xyz, dim=1, keepdim=True),
+                    ],
+                    dim=1,
+                )  # b 10 k 64
         else:
             rel_pos = xyz.unsqueeze(2).repeat(1, 1, self.K - 1, 1)
         pos_enc = self.fc_delta(rel_pos)  # b * dim * k * 64
         q, k, v = self.w_qs(x), self.w_ks(x), self.w_vs(x)  # b* dim * 64
         k = grouping_operation(k, idx.contiguous().int())
         v = grouping_operation(v, idx.contiguous().int())  # b * dim * k *64
-        if self.is_cross_atn:
-            k_pair = k.reshape([-1, 2, self.transform_dim, self.K - 1, N]).contiguous()
-            k_pair = (
-                k_pair.flip(1)
-                .reshape([-1, self.transform_dim, self.K - 1, N])
-                .contiguous()
-            )
-            # k_pair
-            res = []
-            attn = []
-            d = self.transform_dim // 4
-            for i in range(4):
-                v0 = v[:, i * d : (i + 1) * d, :, :].repeat(1, 2, 1, 1)
-                p0 = pos_enc[:, i * d : (i + 1) * d, :, :].repeat(1, 2, 1, 1)
-                k0 = torch.cat(
-                    [
-                        k[:, i * d : (i + 1) * d, :, :],
-                        k_pair[:, i * d : (i + 1) * d, :, :],
-                    ],
-                    1,
-                )
-                q0 = q[:, i * d : (i + 1) * d, :].unsqueeze(-2).repeat(1, 2, 1, 1)
-                a = self.fc_gamma(q0 - k0 + p0)
-                a = F.softmax(a, dim=-2)
-                attn.append(a)
-                res.append(torch.einsum("bmnf,bmnf->bmf", a, v0 + p0))
-            res = torch.cat(res, dim=1)
-            attn = torch.cat(attn, dim=1)
-        else:
-            attn = self.fc_gamma(q[:, :, None, :] - k + pos_enc)
-            attn = F.softmax(attn, dim=-2)  # b x n x k x f
-            res = torch.einsum("bmnf,bmnf->bmf", attn, v + pos_enc)
+        attn = self.fc_gamma(q[:, :, None, :] - k + pos_enc)
+        attn = F.softmax(attn, dim=-2)  # b x n x k x f
+        res = torch.einsum("bmnf,bmnf->bmf", attn, v + pos_enc)
         res = self.conv2(res) + feature
 
         return res, attn
@@ -662,18 +660,24 @@ if __name__ == "__main__":
     sys.path.append("../")
     from common.configs import args
     from time import time
+    import numpy as np
     from thop import profile
     from ptflops import get_model_complexity_info
 
-    a = torch.randn([2, 3, 256])
-    a = a.float().cuda()
+    args.up_module = "attn"
+
     f = Model(args).cuda()
-    # for i in range(20):
-    #     start = time()
-    #     result = f(a)
-    #     end = time()
-    #     print((end - start) / 2)
-    # flops, params = profile(f, inputs=(a,))
-    flops, params = get_model_complexity_info(f, (3, 256))
-    print(flops, params)
+    times = []
+    for i in range(100):
+        a = torch.randn([2, 3, 256])
+        a = a.float().cuda()
+        start = time()
+        result = f(a)
+        end = time()
+        times.append((end - start) / 2)
+        print((end - start) / 2)
+    print(np.mean(times[10:]) * 1000)
+    flops, params = profile(f, inputs=(a,))
+    # flops, params = get_model_complexity_info(f, (3, 256))
+    print(flops / 1024 / 1024 / 1024 / 2, params / 1024 / 1024 * 4)
 
