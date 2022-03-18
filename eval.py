@@ -72,7 +72,7 @@ for D in PRED_DIR:
             pred_path = os.path.join(D, name)
             if not os.path.isfile(pred_path):
                 break
-            pred = load(pred_path)
+            pred = load(pred_path)[:, :3]
             pred, _, _ = normalize_point_cloud(pred)
 
             gt = torch.from_numpy(gt).unsqueeze(0).contiguous().cuda()

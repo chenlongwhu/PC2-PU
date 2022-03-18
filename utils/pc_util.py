@@ -64,10 +64,13 @@ def get_val_data(args):
                 idx = find_best_neighbor(patches, seed_sort[j, 1:4], j)
             point = np.stack([patches[j, :], patches[idx, :]])
             input_list.append(point)  # 2 * 256 *3
-        gt = load(os.path.join(args.gt_dir, name_list[i]))
-        gt, _, _ = normalize_point_cloud(gt)
+        if args.gt_dir == "":
+            gt_val_list = None
+        else:
+            gt = load(os.path.join(args.gt_dir, name_list[i]))
+            gt, _, _ = normalize_point_cloud(gt)
+            gt_val_list.append(torch.from_numpy(gt))
         input_val_list.append(torch.from_numpy(np.vstack(input_list)))
-        gt_val_list.append(torch.from_numpy(gt))
         centroid_val_list.append(torch.from_numpy(centroid))
         distance_val_list.append(torch.from_numpy(furthest_distance))
     print("data is done, It spend : {:.4f} s".format(time() - start))

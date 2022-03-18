@@ -37,11 +37,10 @@ This repository contains a Pytorch implementation of the paper:
     ```
     conda install h5py
     conda install tensorboard
-    pip install nvgpu
     ```
 
 6. Train the model:
-    First, you need to download the training patches in HDF5 format from [GoogleDrive](https://drive.google.com/file/d/1nRTvtjV9W8oEAJ_SAlmw2T9LB0Osobe7/view?usp=sharing) and put it in folder `data/train`.
+    First, you need to download the training patches in HDF5 format from [GoogleDrive](https://drive.google.com/drive/folders/1Mam85gXD9DTamltacgv8ZznSyDBbBovv?usp=sharing) and put it in folder `data`.
     Then run:
    ```shell
    cd code
@@ -49,7 +48,7 @@ This repository contains a Pytorch implementation of the paper:
    ```
 
 7. Evaluate the model:
-    First, you need to download the pretrained model from [GoogleDrive](https://drive.google.com/file/d/1SL1kcqex6rRrpjRp4fH-6XrVHyy1bYas/view?usp=sharing), extract it and put it in folder 'log'.
+    First, you need to download the pretrained model from [GoogleDrive](https://drive.google.com/file/d/1CebnBUtX2OsoPnBNtquUVfZmgqRQPfhm/view?usp=sharing), extract it and put it in folder `log/PC2-PU`.
     Then run:
    ```shell
    cd code

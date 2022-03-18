@@ -195,7 +195,7 @@ class Model(nn.Module):
             in_channel=480,
             transform_dim=args.transform_dim,
             is_cross_atn=self.is_cross_atn,
-            is_pos_encoder=False,
+            is_pos_encoder=True,
         )
         if self.up_module == "shuffle":
             self.up_unit = node_shuffle(args.up_ratio)
@@ -664,8 +664,6 @@ if __name__ == "__main__":
     from thop import profile
     from ptflops import get_model_complexity_info
 
-    args.up_module = "attn"
-
     f = Model(args).cuda()
     times = []
     for i in range(100):
@@ -675,9 +673,9 @@ if __name__ == "__main__":
         result = f(a)
         end = time()
         times.append((end - start) / 2)
-        print((end - start) / 2)
+        print((end - start))
     print(np.mean(times[10:]) * 1000)
     flops, params = profile(f, inputs=(a,))
     # flops, params = get_model_complexity_info(f, (3, 256))
-    print(flops / 1024 / 1024 / 1024 / 2, params / 1024 / 1024 * 4)
+    print(flops / 1024 / 1024 / 1024 / 2, params / 1024 / 1024 * 4 / 2)
 

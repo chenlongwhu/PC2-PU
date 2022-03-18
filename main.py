@@ -1,17 +1,19 @@
 import os
+
+from common.configs import args
+
+os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(args.gpu)
 import random
 from glob import glob
 from time import time
 
 import numpy as np
-import nvgpu
 import pointnet2_ops.pointnet2_utils as pointnet2
 import torch
 import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 
 import utils.pc_util as pc_util
-from common.configs import args
 from common.data_loader import Dataset, PUGAN_Dataset
 from common.helper import Logger, adjust_gamma, adjust_learning_rate, save_checkpoint
 from common.loss import Loss
@@ -44,18 +46,18 @@ def test(
     num_sample = len(input_val_list)
     out_folder = os.path.join(args.log_dir, args.out_dir)
     b = 2 * num_gpu
+    # b = 2
     N = input_val_list[0].shape[0] // (b)
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
     with torch.no_grad():
+        infer_times = []
         for i in range(num_sample):
             torch.cuda.empty_cache()
             d = distance_val_list[i].float().to(device)
             c = centroid_val_list[i].float().to(device)
             # input [n * 2, 256, 3], gt [8192, 3] torch.tensor, centroid 1 distance [3]
             input_list = input_val_list[i]  # n * 2 256 3
-            gt = gt_val_list[i]
-            gt = gt.unsqueeze(0).float().to(device)
             input, centorids, furthest_distances = pc_util.normalize_inputs(
                 input_list.numpy()
             )
@@ -64,7 +66,9 @@ def test(
                 torch.cuda.empty_cache()
                 pts = input[b * j : b * (j + 1)]
                 pts = pts.permute(0, 2, 1).contiguous().float().to(device)
+                s = time()
                 _, pred = model(pts)
+                infer_times.append((time() - s) / 2)
                 pred_list.append(pred[::2, :, :].detach())
             pred = torch.cat(pred_list)
             pred = pred.permute(0, 2, 1).contiguous()  # n 256 3
@@ -81,21 +85,25 @@ def test(
             np.savetxt(
                 os.path.join(out_folder, name_list[i]), pred.cpu().numpy(), fmt="%.6f"
             )
-
+            if gt_val_list is not None:
+                gt = gt_val_list[i]
+                gt = gt.unsqueeze(0).float().to(device)
+            else:
+                continue
             if pred.shape[0] == gt.shape[1]:
                 pred, _, _ = pc_util.normalize_point_cloud(pred.cpu().numpy())
                 pred = torch.from_numpy(pred).unsqueeze(0).contiguous().to(device)
                 # 1 n 3
                 cd_loss += val_loss.get_cd_loss(pred, gt).item()
                 hd_loss += val_loss.get_hd_loss(pred, gt).item()
-            else:
-                cd_loss = 1.0
-                hd_loss = 1.0
 
     print(
         "cd loss : {:.4f}, hd loss : {:.4f}".format(
             (cd_loss / num_sample * 1000), (hd_loss / num_sample * 1000)
         )
+    )
+    print(
+        "Avenge Inference time is :{:.6f}ms".format(np.mean(infer_times[1:]) * 1000.0)
     )
     print("It spend :{:.6f}s".format(time() - start))
     torch.cuda.empty_cache()
@@ -119,7 +127,7 @@ cudnn.deterministic = True
 g = torch.Generator()
 g.manual_seed(seed)
 
-num_gpu = len(nvgpu.available_gpus())
+num_gpu = len(args.gpu)
 device = torch.device("cuda")
 Loss_fn = Loss()
 
@@ -339,7 +347,8 @@ else:
     if args.n_upsample == 2:
         args.test_dir = os.path.join(args.log_dir, args.out_dir)
         args.out_dir = "{}_up_2".format(args.out_dir)
-        args.gt_dir = "data/test/gt_32768"
+        if args.gt_dir != "":
+            args.gt_dir = "data/test/gt_32768"
         (
             npoints,
             input_val_list,

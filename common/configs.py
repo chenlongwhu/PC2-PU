@@ -59,5 +59,6 @@ parser.add_argument("--fidelity_w", type=float, default=100.0)
 parser.add_argument("--hd_w", type=float, default=10.0)
 parser.add_argument("--regular_w", type=float, default=1e-5)
 parser.add_argument("--num_workers", type=int, default=8)
+parser.add_argument("--gpu", nargs="+", type=str, default="0")
 
 args = parser.parse_args()
