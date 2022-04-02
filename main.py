@@ -47,12 +47,13 @@ def test(
     out_folder = os.path.join(args.log_dir, args.out_dir)
     b = 2 * num_gpu
     # b = 2
-    N = input_val_list[0].shape[0] // (b)
+    # N = input_val_list[0].shape[0] // (b)
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
     with torch.no_grad():
         infer_times = []
         for i in range(num_sample):
+            N = input_val_list[i].shape[0] // b
             torch.cuda.empty_cache()
             d = distance_val_list[i].float().to(device)
             c = centroid_val_list[i].float().to(device)

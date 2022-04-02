@@ -1,5 +1,4 @@
 import sys
-from turtle import pos
 
 sys.path.append("../")
 import torch
