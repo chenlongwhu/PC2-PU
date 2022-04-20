@@ -663,6 +663,9 @@ if __name__ == "__main__":
     from thop import profile
     from ptflops import get_model_complexity_info
 
+    # args.use_big_patch = True
+    # args.num_point = 1024
+
     f = Model(args).cuda()
     times = []
     for i in range(100):
@@ -676,5 +679,5 @@ if __name__ == "__main__":
     print(np.mean(times[10:]) * 1000)
     flops, params = profile(f, inputs=(a,))
     # flops, params = get_model_complexity_info(f, (3, 256))
-    print(flops / 1024 / 1024 / 1024 / 2, params / 1024 / 1024 * 4 / 2)
+    print(flops / 1024 / 1024 / 1024 / 2, params / 1024 / 1024 * 4)
 

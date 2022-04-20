@@ -33,7 +33,7 @@ This repository contains a Pytorch implementation of the paper:
     python setup.py install
     ```
 
-5. Install h5py tensorboard nvgpu
+5. Install h5py tensorboard
     ```
     conda install h5py
     conda install tensorboard
