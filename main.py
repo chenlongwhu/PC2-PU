@@ -128,7 +128,7 @@ cudnn.deterministic = True
 g = torch.Generator()
 g.manual_seed(seed)
 
-num_gpu = len(args.gpu)
+num_gpu = len(args.gpu[0].split(','))
 device = torch.device("cuda")
 Loss_fn = Loss()
 

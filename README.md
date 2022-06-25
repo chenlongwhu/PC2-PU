@@ -24,7 +24,7 @@ This repository contains a Pytorch implementation of the paper:
     ```
 3. Install Pointnet2_ops
     ```
-    pip install "git+git://github.com/erikwijmans/Pointnet2_PyTorch.git#egg=pointnet2_ops&subdirectory=pointnet2_ops_lib"
+    pip install "git+https://github.com/erikwijmans/Pointnet2_PyTorch.git/#egg=pointnet2_ops&subdirectory=pointnet2_ops_lib"
     ```
 
 4. Install emd

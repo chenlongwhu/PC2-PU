@@ -105,7 +105,7 @@ class Loss(nn.Module):
         l2_loss = torch.tensor(0.0, requires_grad=True)
         for name, param in model.named_parameters():
             if "bias" not in name:
-                l2_loss = torch.norm(param)
+                l2_loss = l2_loss +  torch.norm(param)
         return alpha * l2_loss
 
     def get_discriminator_loss(self, pred_fake, pred_real):
