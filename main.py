@@ -3,6 +3,7 @@ import os
 from common.configs import args
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(args.gpu)
+
 import random
 from glob import glob
 from time import time
@@ -115,20 +116,19 @@ def test(
 def _init_fn(work_id):
     np.random.seed(args.seed + work_id)
 
+def set_seed():
+    seed = args.seed
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    random.seed(seed)
+    np.random.seed(args.seed)
+    cudnn.benchmark = False
+    cudnn.deterministic = True
 
-os.environ["PYTHONHASHSEED"] = str(args.seed)
-seed = args.seed
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
-random.seed(seed)
-np.random.seed(args.seed)
-cudnn.benchmark = False
-cudnn.deterministic = True
-g = torch.Generator()
-g.manual_seed(seed)
-
-num_gpu = len(args.gpu[0].split(','))
+set_seed()
+num_gpu = len(args.gpu)
 device = torch.device("cuda")
 Loss_fn = Loss()
 
@@ -173,7 +173,6 @@ if args.phase == "train":
             shuffle=True,
             num_workers=args.num_workers,
             pin_memory=True,
-            generator=g,
             worker_init_fn=_init_fn,
         )
     else:
@@ -184,7 +183,6 @@ if args.phase == "train":
             shuffle=True,
             num_workers=args.num_workers,
             pin_memory=True,
-            generator=g,
             worker_init_fn=_init_fn,
         )
     n_set = len(train_data_loader)
@@ -302,39 +300,6 @@ if args.phase == "train":
 
 else:
     model.eval()
-    if args.checkpoint_path == "checkpoint-0.pth.tar":
-        checkpoints = glob(os.path.join(args.log_dir, "*.pth.tar"))
-        checkpoints.sort()
-        cds = []
-        hds = []
-        for c in checkpoints:
-            del model
-            torch.cuda.empty_cache()
-            model = Model(args).to(device)
-            checkpoint = None
-            checkpoint = torch.load(c, map_location=device)
-            model.load_state_dict(checkpoint["model"])
-            model = torch.nn.DataParallel(model)
-            model.eval()
-            cd, hd = test(
-                model,
-                npoints,
-                input_val_list,
-                gt_val_list,
-                centroid_val_list,
-                distance_val_list,
-                name_list,
-            )
-            cds.append(cd)
-            hds.append(hd)
-        t = np.arange(0, len(cds))
-        cds = np.array(cds)
-        hds = np.array(hds)
-        d = np.vstack([t, cds, hds])
-        np.savetxt(
-            os.path.join(args.log_dir, "val.csv"), d.T, fmt="%.6f", delimiter=","
-        )
-        exit()
     test(
         model,
         npoints,
