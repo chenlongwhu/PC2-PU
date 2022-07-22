@@ -73,13 +73,13 @@ The second argument is the mesh, and the third one is the predicted points.
 
 If PC2-PU is useful for your research, please consider citing:
 
-    @misc{long2021pc2pu,
+    @inproceedings{long2022pc2pu,
       title={PC2-PU: Patch Correlation and Position Correction for Effective Point Cloud Upsampling},
       author={Chen Long and Wenxiao Zhang and Ruihui Li and Hao Wang and Zhen Dong and Bisheng Yang},
-      year={2021},
-      eprint={2109.09337},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+      year={2022},
+      booktitle={Proceedings of the 30th ACM International Conference on Multimedia},
+      url= {https://doi.org/10.1145/3503161.3547777},
+      doi= {10.1145/3503161.3547777},
     }
 
 ## Related Repositories
