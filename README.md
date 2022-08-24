@@ -52,7 +52,7 @@ This repository contains a Pytorch implementation of the paper:
     Then run:
    ```shell
    cd code
-   python main.py --phase test --log_dir log/PC2-PU --checkpoint_path model-best.pth.tar
+   python main.py --phase test --log_dir log/PC2-PU --checkpoint_path model_best.pth.tar
    ```
    You will see the input and output results in the folder `log/PC2-PU`.
 
