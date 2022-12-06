@@ -292,15 +292,15 @@ class transformer(nn.Module):
         rel_xyz = xyz[:, :, None, :] - group_xyz  # b 3 k n
         if self.is_pos_encoder:
             if self.is_cross_atn:
-                pair_xyz = xyz.reshape(-1, 3, 2 * N).contiguous()
+                pair_xyz = xyz.permute(0, 2, 1).reshape(-1, 2*N, 3).permute(0, 2, 1).contiguous()
                 _, pair_idx = self.KNN(pair_xyz, pair_xyz)
                 pair_idx = pair_idx[:, 1:, :]
                 pair_group_xyz = grouping_operation(
                     pair_xyz, pair_idx.contiguous().int()
                 )
                 pair_rel_xyz = pair_xyz[:, :, None, :] - pair_group_xyz
-                pair_group_xyz = pair_group_xyz.reshape(-1, 3, self.K - 1, N)
-                pair_rel_xyz = pair_rel_xyz.reshape(-1, 3, self.K - 1, N)
+                pair_group_xyz = pair_group_xyz.permute(0, 3, 2, 1).reshape(-1, N, self.K-1, 3).permute(0, 3, 2, 1).contiguous()
+                pair_rel_xyz = pair_rel_xyz.permute(0, 3, 2, 1).reshape(-1, N, self.K-1, 3).permute(0, 3, 2, 1).contiguous()
                 rel_pos = torch.cat(
                     [
                         xyz.unsqueeze(2).repeat(1, 1, self.K - 1, 1),

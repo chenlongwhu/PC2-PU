@@ -4,6 +4,17 @@ This repository contains a Pytorch implementation of the paper:
 
 [PC2-PU: Patch Correlation and Position Correction for Effective Point Cloud Upsampling](https://arxiv.org/abs/2109.09337).
 
+## News
+We checked our code and found a problem, which is fixed now. The results have also changed. Our main experiment results are as follows.
+
+1. Benchmark(x4)  : CD: 0.2317 -> 0.2337 , HD: 2.5942 -> 2.6038
+2. Benchmark(x16) : CD: 0.0998 -> 0.1018 , HD: 2.8692 -> 2.8486
+3. Add 0.5% noise : CD: 0.2604 -> 0.2607
+4. Add 1.0% noise : CD: 0.3586 -> 0.3580
+5. Add 2.0% noise : CD: 0.7727 -> 0.7754
+6. Generalization Test : CD: 5099 -> 0.5114, HD: 5.9618 -> 5.9871
+
+
 ## Getting Started
 
 1. Clone the repository:
