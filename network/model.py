@@ -293,11 +293,12 @@ class transformer(nn.Module):
         if self.is_pos_encoder:
             if self.is_cross_atn:
                 pair_xyz = xyz.permute(0, 2, 1).reshape(-1, 2*N, 3).permute(0, 2, 1).contiguous()
-                _, pair_idx = self.KNN(pair_xyz, pair_xyz)
-                pair_idx = pair_idx[:, 1:, :]
-                pair_group_xyz = grouping_operation(
-                    pair_xyz, pair_idx.contiguous().int()
-                )
+                if self.training:
+                    _, pair_idx = self.KNN(pair_xyz, pair_xyz) # 因为训练的时候都是unique的，测试的时候不是
+                    pair_idx = pair_idx[:, 1:, :]
+                    pair_group_xyz = grouping_operation(pair_xyz, pair_idx.contiguous().int())
+                else:
+                    pair_group_xyz = self.get_unique_group(pair_xyz)
                 pair_rel_xyz = pair_xyz[:, :, None, :] - pair_group_xyz
                 pair_group_xyz = pair_group_xyz.permute(0, 3, 2, 1).reshape(-1, N, self.K-1, 3).permute(0, 3, 2, 1).contiguous()
                 pair_rel_xyz = pair_rel_xyz.permute(0, 3, 2, 1).reshape(-1, N, self.K-1, 3).permute(0, 3, 2, 1).contiguous()
@@ -338,6 +339,17 @@ class transformer(nn.Module):
         res = self.conv2(res) + feature
 
         return res, attn
+
+    def get_unique_group(self, pair_xyz, ):
+        B = pair_xyz.shape[0]
+        group_xyz = []
+        for i in range(B):
+            xyz = pair_xyz[i:i+1]
+            unique_xyz = torch.unique(xyz, dim=-1) # 1, 3, N
+            _, idx = self.KNN(unique_xyz, xyz)
+            idx = idx[:, 1:, :]
+            group_xyz.append(grouping_operation(unique_xyz, idx.contiguous().int()))
+        return torch.cat(group_xyz, dim=0)
 
 
 class node_shuffle(nn.Module):
